@@ -641,8 +641,7 @@ if (isset($_SESSION['newbook_message'])) {
 
                     <div class="form-group">
                         <label for="editorial">Imagen del libro</label>
-                        <input type="text" id="imagen" name="imagen" placeholder="Ingresa el link de tu imagen"
-                            required>
+                        <input type="text" id="imagen" name="imagen" placeholder="Ingresa el link de tu imagen">
                     </div>
 
                     <div class="form-group">

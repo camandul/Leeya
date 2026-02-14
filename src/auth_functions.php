@@ -1552,3 +1552,122 @@ function getUserRating($rater_id, $ratee_id)
     }
 }
 /* POSTGRESQL */
+
+
+/* POSTGRESQL */
+// Obtener estadísticas del balance del usuario
+function getUserBalance($user_id)
+{
+    try {
+        $pdo = getDBConnection();
+
+        // Verificar que el usuario existe
+        $check = $pdo->prepare('SELECT "id" FROM "user" WHERE "id" = :user_id LIMIT 1');
+        $check->execute(['user_id' => $user_id]);
+        if (!$check->fetch()) {
+            return [
+                'total_transactions' => 0,
+                'books_given' => 0,
+                'books_acquired' => 0,
+                'money_earned' => 0,
+                'money_invested' => 0,
+                'net_balance' => 0
+            ];
+        }
+
+        // Total de transacciones completadas (propuestas finalizadas)
+        // Cuenta propuestas donde el usuario es interesado O propietario del libro
+        $stmt = $pdo->prepare('
+            SELECT COUNT(DISTINCT p."id") as total_transactions
+            FROM "proposal" p
+            LEFT JOIN "book" b ON p."targetbookid" = b."id"
+            WHERE (p."interested" = :user_id OR b."ownerid" = :user_id2)
+            AND p."status" = :status
+        ');
+        $stmt->execute([
+            'user_id' => $user_id,
+            'user_id2' => $user_id,
+            'status' => 'Finalizada'
+        ]);
+        $transactions = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Total de libros dados/vendidos (libros del usuario que fueron finalizados en propuestas)
+        $stmt = $pdo->prepare('
+            SELECT COUNT(DISTINCT p."targetbookid") as books_given
+            FROM "proposal" p
+            INNER JOIN "book" b ON p."targetbookid" = b."id"
+            WHERE b."ownerid" = :user_id
+            AND p."status" = :status
+        ');
+        $stmt->execute([
+            'user_id' => $user_id,
+            'status' => 'Finalizada'
+        ]);
+        $books_given = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Total de libros adquiridos (propuestas finalizadas donde el usuario es interesado)
+        $stmt = $pdo->prepare('
+            SELECT COUNT(*) as books_acquired
+            FROM "proposal"
+            WHERE "interested" = :user_id
+            AND "status" = :status
+        ');
+        $stmt->execute([
+            'user_id' => $user_id,
+            'status' => 'Finalizada'
+        ]);
+        $books_acquired = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Dinero generado (propuestas finalizadas donde el usuario es dueño del libro y hay dinero)
+        $stmt = $pdo->prepare('
+            SELECT COALESCE(SUM(p."money"), 0) as money_earned
+            FROM "proposal" p
+            INNER JOIN "book" b ON p."targetbookid" = b."id"
+            WHERE b."ownerid" = :user_id
+            AND p."status" = :status
+            AND p."money" IS NOT NULL
+            AND p."money" > 0
+        ');
+        $stmt->execute([
+            'user_id' => $user_id,
+            'status' => 'Finalizada'
+        ]);
+        $money_earned = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Dinero invertido (propuestas finalizadas donde el usuario es interesado y hay dinero)
+        $stmt = $pdo->prepare('
+            SELECT COALESCE(SUM(p."money"), 0) as money_invested
+            FROM "proposal" p
+            WHERE p."interested" = :user_id
+            AND p."status" = :status
+            AND p."money" IS NOT NULL
+            AND p."money" > 0
+        ');
+        $stmt->execute([
+            'user_id' => $user_id,
+            'status' => 'Finalizada'
+        ]);
+        $money_invested = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return [
+            'total_transactions' => intval($transactions['total_transactions'] ?? 0),
+            'books_given' => intval($books_given['books_given'] ?? 0),
+            'books_acquired' => intval($books_acquired['books_acquired'] ?? 0),
+            'money_earned' => floatval($money_earned['money_earned'] ?? 0),
+            'money_invested' => floatval($money_invested['money_invested'] ?? 0),
+            'net_balance' => floatval(($money_earned['money_earned'] ?? 0) - ($money_invested['money_invested'] ?? 0))
+        ];
+
+    } catch (PDOException $e) {
+        error_log('PostgreSQL getUserBalance error: ' . $e->getMessage());
+        return [
+            'total_transactions' => 0,
+            'books_given' => 0,
+            'books_acquired' => 0,
+            'money_earned' => 0,
+            'money_invested' => 0,
+            'net_balance' => 0
+        ];
+    }
+}
+/* POSTGRESQL */

@@ -10,6 +10,7 @@ $user_role = '';
 
 refreshSessionUser();
 updateExpiredAuctions();
+cancelOldProposals();
 
 if (isLoggedIn()) {
 
@@ -34,21 +35,23 @@ if (isset($_SESSION['user_id'])) {
     exit();
 }
 
+// Obtener estadísticas del balance
+$balance = getUserBalance($_SESSION['user_id']);
+
 ?>
 
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Perfil</title>
+    <title>Mi balance</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="img/icon.png" type="image/png">
 </head>
 
 <body>
-
 
     <style>
         html {
@@ -84,7 +87,7 @@ if (isset($_SESSION['user_id'])) {
             font-size: 15px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
             overflow: hidden;
-            z-index: 4;
+            z-index: 5;
         }
 
         nav a {
@@ -146,14 +149,11 @@ if (isset($_SESSION['user_id'])) {
         }
     </style>
 
+
     <nav>
 
         <a href="index.php" class="image-logo">
             <div class="content">LEEYA</div>
-        </a>
-
-        <a href="explore.php">
-            <div class="content">EXPLORAR</div>
         </a>
 
         <?php if ($is_logged_in):
@@ -162,6 +162,10 @@ if (isset($_SESSION['user_id'])) {
             $total_pending = $pending_counts['sent'] + $pending_counts['received'];
             $badge_text = $total_pending > 9 ? '+9' : ($total_pending > 0 ? $total_pending : '');
             ?>
+
+            <a href="explore.php">
+                <div class="content">EXPLORAR</div>
+            </a>
 
             <a href="newbook.php" class="plus">
                 <div class="content">+</div>
@@ -195,9 +199,29 @@ if (isset($_SESSION['user_id'])) {
                 </svg>
                 <?php if ($badge_text): ?>
                     <span class="numnoti">
-                        <p><?= $badge_text ?></p>
+                        <p>
+                            <?= $badge_text ?>
+                        </p>
                     </span>
                 <?php endif; ?>
+            </a>
+
+            <a class="circle2" href="user.php">
+                <svg class="esuve2" width="256px" height="256px" viewBox="0 0 28.00 28.00" fill="none"
+                    xmlns="http://www.w3.org/2000/svg" stroke="#333333" stroke-width="0.14">
+                    <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                    <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#e6e6e6"
+                        stroke-width="2.632">
+                        <path clip-rule="evenodd"
+                            d="M13.9991 2C10.6405 2 7.88924 4.6739 7.88924 8.00723C7.88924 10.1497 9.02582 12.0197 10.7297 13.0825C5.95609 14.5248 2.41965 19.0144 2.00617 24.0771C1.91662 25.1735 2.81571 26 3.81688 26H24.1831C25.1843 26 26.0834 25.1735 25.9938 24.0771C25.5803 19.014 22.0433 14.524 17.2691 13.0821C18.9726 12.0193 20.109 10.1494 20.109 8.00723C20.109 4.6739 17.3577 2 13.9991 2ZM9.74071 8.00723C9.74071 5.72598 11.6315 3.84838 13.9991 3.84838C16.3667 3.84838 18.2575 5.72598 18.2575 8.00723C18.2575 10.2885 16.3667 12.1661 13.9991 12.1661C11.6315 12.1661 9.74071 10.2885 9.74071 8.00723ZM4.95086 24.1516C4.36361 24.1516 3.89887 23.6462 4.01091 23.0697C4.94115 18.2837 9.09806 14.4476 14 14.4476C18.902 14.4476 23.0589 18.2837 23.9891 23.0697C24.1011 23.6462 23.6364 24.1516 23.0492 24.1516H4.95086Z"
+                            fill="#333333" fill-rule="evenodd"></path>
+                    </g>
+                    <g id="SVGRepo_iconCarrier">
+                        <path clip-rule="evenodd"
+                            d="M13.9991 2C10.6405 2 7.88924 4.6739 7.88924 8.00723C7.88924 10.1497 9.02582 12.0197 10.7297 13.0825C5.95609 14.5248 2.41965 19.0144 2.00617 24.0771C1.91662 25.1735 2.81571 26 3.81688 26H24.1831C25.1843 26 26.0834 25.1735 25.9938 24.0771C25.5803 19.014 22.0433 14.524 17.2691 13.0821C18.9726 12.0193 20.109 10.1494 20.109 8.00723C20.109 4.6739 17.3577 2 13.9991 2ZM9.74071 8.00723C9.74071 5.72598 11.6315 3.84838 13.9991 3.84838C16.3667 3.84838 18.2575 5.72598 18.2575 8.00723C18.2575 10.2885 16.3667 12.1661 13.9991 12.1661C11.6315 12.1661 9.74071 10.2885 9.74071 8.00723ZM4.95086 24.1516C4.36361 24.1516 3.89887 23.6462 4.01091 23.0697C4.94115 18.2837 9.09806 14.4476 14 14.4476C18.902 14.4476 23.0589 18.2837 23.9891 23.0697C24.1011 23.6462 23.6364 24.1516 23.0492 24.1516H4.95086Z"
+                            fill="#333333" fill-rule="evenodd"></path>
+                    </g>
+                </svg>
             </a>
 
             <style>
@@ -215,6 +239,11 @@ if (isset($_SESSION['user_id'])) {
                     background-color: #d8d8d888;
                     border: 1px solid rgba(99, 99, 99, 0.6);
 
+                    .esuve {
+                        height: 100%;
+                        width: auto;
+                        max-height: 100%;
+                    }
 
                     .numnoti {
                         position: absolute;
@@ -222,12 +251,6 @@ if (isset($_SESSION['user_id'])) {
                         padding: 3px 1px 0 0;
                         color: #202020;
                         font-size: clamp(.4rem, 1.2vh, .6rem);
-                    }
-
-                    .esuve {
-                        height: 100%;
-                        width: auto;
-                        max-height: 100%;
                     }
                 }
 
@@ -244,7 +267,6 @@ if (isset($_SESSION['user_id'])) {
                     border: none;
                     background-color: #d8d8d888;
                     border: 1px solid rgba(99, 99, 99, 0.6);
-
 
                     .esuve2 {
                         height: 88%;
@@ -305,490 +327,284 @@ if (isset($_SESSION['user_id'])) {
     </nav>
 
 
+    <style>
+        main {
+            max-width: 1440px;
+            min-width: 200px;
+            width: 96%;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+            margin: 2.8rem auto 0 auto;
+            padding: 2rem 0 0 0;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+
     <main>
 
         <style>
-            main {
-                max-width: 1440px;
-                min-width: 200px;
-                width: 100%;
-                height: auto;
-                display: flex;
-                flex-direction: column;
-                margin: 2.8rem auto 0 auto;
-                padding: 2rem 0 0 0;
-                justify-content: center;
-                align-items: center;
-            }
-
-            @media(max-width: 750px) {
-
-                main {
-                    flex-direction: column;
-                    margin: 2rem auto 0 auto;
-                    width: 95%;
-                    height: auto;
-                    padding: 0;
-                }
-
-            }
-
-            .profile-container {
-                width: 100%;
-                display: flex;
-                flex-wrap: wrap;
-                flex-direction: row;
-                margin: 0 auto;
-                justify-content: center;
-                align-items: stretch;
-                margin-top: 3.5rem;
-                gap: 2.5%;
-                padding: 0 2rem;
-                box-sizing: border-box;
-            }
-
-            @media(max-width: 750px) {
-                .profile-container {
-                    width: 100%;
-                    display: flex;
-                    flex-direction: column;
-                    margin: 0 auto;
-                    justify-content: center;
-                    align-items: center;
-                    margin-top: 1rem;
-                    gap: 3.5%;
-                    font-size: 10px;
-                }
-
-                h1 {
-                    font-size: 15px;
-                }
-            }
-
-            .dataUser {
-                width: 50%;
-                display: flex;
-                flex-direction: column;
-                flex-wrap: nowrap;
-                align-items: flex-start;
-                justify-content: flex-start;
-                margin: 0;
-                box-sizing: border-box;
-                padding: 3rem;
-                border-radius: 10px;
-                border: 1px solid rgba(99, 99, 99, 0.37);
-                background-color: #d8d8d888;
-                backdrop-filter: blur(80px);
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-                overflow: hidden;
-                color: #333333;
-                gap: 1.2rem;
-
-                h1 {
-                    margin: 0 0 0.5rem 0;
-                    font-size: 28px;
-                    width: 100%;
-                    text-align: left;
-                    color: #15152e;
-                }
-
-                p {
-                    display: block;
-                    margin: 0;
-                    padding: 0;
-                    width: 100%;
-                    text-align: left;
-                    line-height: 1.4;
-                    font-size: 14px;
-                }
-
-                .since {
-                    margin-bottom: 0.5rem;
-                    font-family: 'HovesDemiBoldItalic';
-                    font-size: 13px;
-                    color: #555555;
-                }
-
-            }
-
-            .userChanges {
-                width: 30%;
-                display: flex;
-                flex-direction: column;
-                flex-wrap: nowrap;
-                align-items: stretch;
-                justify-content: center;
-                gap: 0.8rem;
-                border-radius: 10px;
-                border: 1px solid rgba(99, 99, 99, 0.37);
-                background-color: #08083069;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-                padding: 2rem;
-                box-sizing: border-box;
-
-                a {
-                    width: 100%;
-                    text-align: center;
-                    padding: 1rem;
-                    border-radius: 10px;
-                    background-color: #d8d8d888;
-                    border: 1px solid rgba(99, 99, 99, 0.37);
-                    backdrop-filter: blur(80px);
-                    text-decoration: none;
-                    font-size: 14px;
-                    font-weight: 600;
-                    transition: all 0.3s ease;
-                    color: #333333;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    min-height: 45px;
-                    box-sizing: border-box;
-                }
-
-                a:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
-                    border-color: rgba(99, 99, 99, 0.6);
-                }
-
-            }
-
-            @media(max-width: 750px) {
-                .profile-container {
-                    padding: 0 1rem;
-                    gap: 1.5rem;
-                }
-
-                .dataUser {
-                    width: 100%;
-                    display: flex;
-                    flex-direction: column;
-                    flex-wrap: nowrap;
-                    align-items: flex-start;
-                    justify-content: flex-start;
-                    margin: 0;
-                    box-sizing: border-box;
-                    padding: 2rem;
-                    border-radius: 10px;
-                    border: 1px solid rgba(99, 99, 99, 0.37);
-                    background-color: #d8d8d888;
-                    backdrop-filter: blur(80px);
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-                    overflow: hidden;
-                    color: #333333;
-                    gap: 0.8rem;
-
-                    h1 {
-                        margin: 0 0 0.5rem 0;
-                        font-size: 18px;
-                        width: 100%;
-                    }
-
-                    p {
-                        display: block;
-                        margin: 0;
-                        padding: 0;
-                        width: 100%;
-                        font-size: 13px;
-                    }
-
-                    .since {
-                        margin-bottom: 0;
-                        font-family: 'HovesDemiBoldItalic';
-                        font-size: 12px;
-                    }
-
-                }
-
-                .userChanges {
-                    width: 100%;
-                    display: flex;
-                    flex-direction: column;
-                    flex-wrap: nowrap;
-                    align-items: stretch;
-                    justify-content: flex-start;
-                    border-radius: 10px;
-                    border: 1px solid rgba(99, 99, 99, 0.37);
-                    background-color: #08083069;
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-                    margin: 0;
-                    box-sizing: border-box;
-                    padding: 1.5rem;
-                    gap: 0.6rem;
-
-                    a {
-                        width: 100%;
-                        text-align: center;
-                        padding: 0.85rem;
-                        border-radius: 10px;
-                        background-color: #d8d8d888;
-                        border: 1px solid rgba(99, 99, 99, 0.37);
-                        backdrop-filter: blur(80px);
-                        text-decoration: none;
-                        font-size: 13px;
-                        font-weight: 600;
-                        transition: all 0.3s ease;
-                        color: #333333;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        min-height: 40px;
-                        box-sizing: border-box;
-                    }
-
-                    a:hover {
-                        transform: translateY(-2px);
-                        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-                    }
-
-                }
-            }
-
-            a:visited {
-                text-decoration: none;
-                color: #333333;
-            }
-
-            .infotextfinal {
-                max-height: 60px;
-                height: auto;
-                text-overflow: ellipsis;
-                overflow: auto;
-                box-sizing: border-box;
-                padding-top: 0;
-                width: 100%;
-                font-size: 14px;
-                line-height: 1.4;
-
-            }
-        </style>
-
-
-        <div class="profile-container">
-
-            <div class="dataUser">
-
-                <h1 class="welcome">Bienvenido,
-                    <?php echo htmlspecialchars(explode(' ', $_SESSION['user_name'])[0]); ?>
-                </h1>
-                <p class="since">Usuario activo desde:
-                    <?php echo htmlspecialchars(explode(' ', $_SESSION['user_signdate'])[0]); ?>
-                </p>
-                <p class="infotext">Correo electrónico de contacto:
-                    <?php echo htmlspecialchars(explode(' ', $_SESSION['user_email'])[0]); ?>
-                </p>
-                <p class="infotext">Ubicación:
-                    <?php echo htmlspecialchars($_SESSION['user_location']); ?>
-                </p>
-                <?php
-                $user_description = htmlspecialchars($_SESSION['user_description']);
-                if ($_SESSION['user_description'] == '') {
-                    ?>
-                    <p class="infotextfinal">Aún no cuentas con una descripción</p>
-                    <?php
-                } else {
-                    ?>
-                    <p class="infotextfinal">Tu descripción:
-                        <?php echo htmlspecialchars($user_description); ?>
-
-                        <?php
-                }
-                ?>
-
-            </div>
-
-            <div class="userChanges">
-                <a class="functions" href="changePassword.php">CAMBIAR CONTRASEÑA</a>
-                <a class="functions" href="changeLocation.php">CAMBIAR LOCALIDAD</a>
-                <a class="functions" href="changeDescription.php">CAMBIAR DESCRIPCIÓN</a>
-                <a class="functions" href="balance.php">MI BALANCE</a>
-                <a class="functions" href="logout.php">CERRAR SESIÓN</a>
-            </div>
-
-        </div>
-
-
-        <style>
-            .header-container {
-                margin-top: clamp(3rem, 8vh, 6rem);
-                margin-bottom: 1.5rem;
-                color: #333333;
-
-                h1 {
-                    padding: 0;
-                    margin: 0;
-                    font-size: clamp(1.2rem, 2vw, 1.6rem);
-                    color: #15152e;
-                }
-            }
-
-            .bookbox-container {
-                margin: 0 auto clamp(2.2rem, 2.8vh, 3.5rem) auto;
-                border: 1px solid rgba(99, 99, 99, 0.37);
-                background-color: #d8d8d888;
-                backdrop-filter: blur(8px);
+            .balance-title {
                 width: 92%;
-                padding: clamp(.8rem, 2vw, 2.2rem);
-                display: flex;
-                flex-wrap: wrap;
-                justify-items: stretch;
-                justify-content: center;
-                align-items: stretch;
-                gap: 1rem;
-                border-radius: clamp(1rem, 1.5vw, 2rem);
-                box-sizing: border-box;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+                margin-top: clamp(1.4rem, 3vw, 2.5rem);
+                color: #15152e;
+                text-align: left;
+                font-size: clamp(1.8rem, 8vh, 2.5rem);
+                border-bottom: 1px solid rgba(99, 99, 99, 0.37);
+                padding-bottom: clamp(.8rem, 3vh, 1.2rem);
+                margin-bottom: clamp(1.5rem, 6vh, 2rem);
             }
 
-            .fullbook {
-                flex: 0 0 auto;
-                background-color: #d8d8d888;
-                border: 1px solid rgba(99, 99, 99, 0.37);
-                max-width: 280px;
-                width: 100%;
-                box-sizing: border-box;
+            .balance-grid {
+                width: 95%;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: clamp(1rem, 4vh, 1.8rem);
+                margin-bottom: clamp(2rem, 8vh, 3rem);
+            }
+
+            .balance-card {
+                border-radius: clamp(8px, 1.8vw, 14px);
                 display: flex;
                 flex-direction: column;
+                border: 1px solid rgba(99, 99, 99, 0.37);
+                backdrop-filter: blur(8px);
+                box-sizing: border-box;
+                padding: clamp(1.2rem, 4vh, 2rem);
+                align-items: center;
                 justify-content: center;
-                border-radius: clamp(15px, 1.8vw, 22px);
-                align-items: center;
                 box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-            }
-
-            .statusbook {
-                background-color: #08083033;
-                border: 1px solid rgba(99, 99, 99, 0.37);
-                width: clamp(8rem, 10vw, 5vw);
+                background-color: #64646425;
+                min-height: 160px;
                 text-align: center;
-                color: #333333;
-                margin: clamp(.6rem, 3.5vh, 2rem) 0 clamp(1rem, 1vh, 3rem) 0;
-                border-radius: clamp(10px, 1.5vw, 20px);
-                font-size: clamp(.8rem, 1.2vw, 1rem);
             }
 
-            .imagenbox {
-                background-color: transparent;
-                height: 200px;
-                margin: 0 auto clamp(.5rem, .8vh, 2rem) auto;
-                width: 88%;
-                border-radius: clamp(10px, 1.5vw, 20px);
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-                overflow: hidden;
-
-                img {
-                    height: auto;
-                    width: 100%;
-                }
+            .balance-card h3 {
+                color: #666666;
+                font-size: clamp(0.85rem, 3vh, 0.95rem);
+                margin: 0 0 clamp(0.8rem, 3vh, 1.2rem) 0;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                font-weight: 600;
             }
 
-            .cajajunta {
-                width: 82%;
-                max-height: 20px;
-                overflow: hidden;
+            .balance-card .value {
+                color: #15152e;
+                font-size: clamp(2rem, 6vh, 2.8rem);
+                font-weight: bold;
+                margin: 0;
+            }
+
+            .balance-card .subtitle {
+                color: #999999;
+                font-size: clamp(0.75rem, 2vh, 0.85rem);
+                margin-top: clamp(0.4rem, 2vh, 0.6rem);
+            }
+
+            .balance-section {
+                width: 95%;
+                margin-bottom: clamp(2rem, 8vh, 3rem);
+            }
+
+            .section-title {
+                color: #15152e;
+                font-size: clamp(1.3rem, 5vh, 1.6rem);
+                margin: 0 0 clamp(1.2rem, 4vh, 1.8rem) 0;
+                border-bottom: 2px solid rgba(99, 99, 99, 0.37);
+                padding-bottom: clamp(0.6rem, 2vh, 0.8rem);
+            }
+
+            .financial-grid {
+                width: 100%;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: clamp(1rem, 4vh, 1.8rem);
+            }
+
+            .financial-card {
+                border-radius: clamp(8px, 1.8vw, 14px);
                 display: flex;
-                flex-direction: row;
-                flex-wrap: nowrap;
-                align-items: center;
-                justify-content: space-between;
-                text-overflow: ellipsis;
-                font-size: clamp(.7rem, 1vw, 1rem);
-            }
-
-            .TituloLibro {
-                width: 55%;
-                text-align: start;
-                text-overflow: ellipsis;
-                overflow: hidden;
-                color: #333333;
-            }
-
-            .PrecioLibro {
-                width: 40%;
-                color: #202020;
-                text-align: center;
-            }
-
-            .AdquirirLibro {
-                text-decoration: none;
-                width: 40%;
-                font-size: clamp(.8rem, 1.2vw, 1.4rem);
-                text-align: center;
-                border-radius: clamp(10px, 1.5vw, 20px);
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-                margin: clamp(.4rem, 2.6vh, 1.6rem) 0 clamp(1rem, 4vh, 3rem) 0;
+                flex-direction: column;
                 border: 1px solid rgba(99, 99, 99, 0.37);
-                background-color: #08083069;
+                backdrop-filter: blur(8px);
+                box-sizing: border-box;
+                padding: clamp(1.5rem, 4vh, 2.2rem);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+                background-color: #64646425;
+            }
 
-                a {
-                    text-decoration: none;
-                    color: #333333;
+            .financial-card.earned {
+                border-left: 4px solid #4CAF50;
+            }
 
+            .financial-card.invested {
+                border-left: 4px solid #2196F3;
+            }
+
+            .financial-card.net {
+                border-left: 4px solid #FF9800;
+            }
+
+            .financial-label {
+                color: #666666;
+                font-size: clamp(0.9rem, 3vh, 1rem);
+                margin: 0 0 clamp(0.6rem, 2vh, 1rem) 0;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                font-weight: 600;
+            }
+
+            .financial-amount {
+                color: #15152e;
+                font-size: clamp(1.8rem, 5vh, 2.4rem);
+                font-weight: bold;
+                margin: 0;
+            }
+
+            .financial-card.earned .financial-label {
+                color: #4CAF50;
+            }
+
+            .financial-card.invested .financial-label {
+                color: #2196F3;
+            }
+
+            .financial-card.net .financial-label {
+                color: #FF9800;
+            }
+
+            .balance-summary {
+                width: 100%;
+                border-radius: clamp(8px, 1.8vw, 14px);
+                border: 1px solid rgba(99, 99, 99, 0.37);
+                backdrop-filter: blur(8px);
+                box-sizing: border-box;
+                padding: clamp(1.5rem, 4vh, 2.2rem);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+                background-color: #64646425;
+                display: flex;
+                flex-direction: column;
+                gap: clamp(1rem, 3vh, 1.5rem);
+            }
+
+            .summary-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: clamp(0.6rem, 2vh, 1rem) 0;
+                border-bottom: 1px solid rgba(99, 99, 99, 0.2);
+            }
+
+            .summary-row:last-child {
+                border-bottom: none;
+            }
+
+            .summary-label {
+                color: #666666;
+                font-size: clamp(0.9rem, 2vh, 1rem);
+            }
+
+            .summary-value {
+                color: #15152e;
+                font-size: clamp(0.95rem, 2.5vh, 1.1rem);
+                font-weight: bold;
+            }
+
+            @media (max-width: 750px) {
+                .balance-grid {
+                    grid-template-columns: 1fr;
                 }
 
-                a::visited {
-                    text-decoration: none;
-                    color: ;
+                .financial-grid {
+                    grid-template-columns: 1fr;
                 }
             }
         </style>
 
-        <?php
+        <h1 class="balance-title">Mi Balance</h1>
 
-        $books = [];
-        if ($is_logged_in && isset($_SESSION['user_id'])) {
-            $books = getBooksByUserId($_SESSION['user_id']);
-        }
-        ?>
-
-        <div class="header-container">
-            <?php if (empty($books)): ?>
-                <h1>No tienes libros en tu catalogo</h1>
-            <?php else: ?>
-                <h1>Mi catalogo</h1>
+        <!-- Estadísticas principales -->
+        <div class="balance-grid">
+            <div class="balance-card">
+                <h3>Transacciones Totales</h3>
+                <p class="value"><?= htmlspecialchars($balance['total_transactions']) ?></p>
+                <p class="subtitle">Operaciones completadas</p>
             </div>
 
-            <div class="bookbox-container">
+            <div class="balance-card">
+                <h3>Libros Dados</h3>
+                <p class="value"><?= htmlspecialchars($balance['books_given']) ?></p>
+                <p class="subtitle">Libros vendidos/subastados</p>
+            </div>
 
-                <?php foreach ($books as $book): ?>
-
-                    <div class="fullbook">
-
-                        <div class="statusbook">
-                            <?= htmlspecialchars($book['typeof']) ?>
-                        </div>
-
-
-                        <div class="imagenbox">
-                            <img src="<?= htmlspecialchars($book['bookpic']) ?>" alt="Libro publicado">
-                        </div>
-
-                        <div class="cajajunta">
-                            <div class="TituloLibro">
-                                <?= htmlspecialchars($book['name']) ?>
-                            </div>
-
-
-                            <?php if ($book['price'] !== null): ?>
-                                <div class="PrecioLibro">$
-                                    <?= htmlspecialchars($book['price']) ?>
-                                </div>
-                            <?php elseif ($book['price'] == null): ?>
-                                <div class="PrecioLibro">($) No aplica</div>
-                            <?php endif; ?>
-                        </div>
-
-
-                        <div class="AdquirirLibro">
-                            <a href="pickedbook.php?id=<?= $book['id'] ?>">MÁS INFO</a>
-                        </div>
-
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
-
+            <div class="balance-card">
+                <h3>Libros Adquiridos</h3>
+                <p class="value"><?= htmlspecialchars($balance['books_acquired']) ?></p>
+                <p class="subtitle">Libros comprados/ganados</p>
+            </div>
         </div>
 
+        <!-- Sección Financiera -->
+        <div class="balance-section">
+            <h2 class="section-title">Análisis Financiero</h2>
+
+            <div class="financial-grid">
+                <div class="financial-card earned">
+                    <p class="financial-label">Dinero Generado</p>
+                    <p class="financial-amount">$<?= number_format($balance['money_earned'], 2, '.', ',') ?></p>
+                    <p class="subtitle">De ventas y subastas</p>
+                </div>
+
+                <div class="financial-card invested">
+                    <p class="financial-label">Dinero Invertido</p>
+                    <p class="financial-amount">$<?= number_format($balance['money_invested'], 2, '.', ',') ?></p>
+                    <p class="subtitle">En compras y subastas</p>
+                </div>
+
+                <div class="financial-card net">
+                    <p class="financial-label">Balance Neto</p>
+                    <p class="financial-amount"
+                        style="color: <?= $balance['net_balance'] >= 0 ? '#4CAF50' : '#f44336' ?>">
+                        <?= $balance['net_balance'] >= 0 ? '+' : '' ?>$<?= number_format($balance['net_balance'], 2, '.', ',') ?>
+                    </p>
+                    <p class="subtitle"><?= $balance['net_balance'] >= 0 ? 'Ganancia' : 'Pérdida' ?></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumen detallado -->
+        <div class="balance-section">
+            <h2 class="section-title">Resumen Detallado</h2>
+
+            <div class="balance-summary">
+                <div class="summary-row">
+                    <span class="summary-label">Total de Transacciones</span>
+                    <span class="summary-value"><?= htmlspecialchars($balance['total_transactions']) ?></span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Libros que has dado</span>
+                    <span class="summary-value"><?= htmlspecialchars($balance['books_given']) ?></span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Libros que has adquirido</span>
+                    <span class="summary-value"><?= htmlspecialchars($balance['books_acquired']) ?></span>
+                </div>
+                <div class="summary-row"
+                    style="border-bottom: 2px solid rgba(99, 99, 99, 0.37); margin-top: clamp(0.5rem, 2vh, 0.8rem);">
+                    <span class="summary-label"><strong>Total Movimiento Financiero</strong></span>
+                    <span
+                        class="summary-value"><strong>$<?= number_format($balance['money_earned'] + $balance['money_invested'], 2, '.', ',') ?></strong></span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label"><strong>Beneficio / Pérdida</strong></span>
+                    <span class="summary-value"
+                        style="color: <?= $balance['net_balance'] >= 0 ? '#4CAF50' : '#f44336' ?>">
+                        <strong><?= $balance['net_balance'] >= 0 ? '+' : '' ?>$<?= number_format($balance['net_balance'], 2, '.', ',') ?></strong>
+                    </span>
+                </div>
+            </div>
+        </div>
 
     </main>
 
