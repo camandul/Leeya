@@ -1,5 +1,4 @@
 <?php
-
 function getDBConnection()
 {
     try {
@@ -28,7 +27,6 @@ function getDBConnection()
         die("ERROR POSTGRES: " . $e->getMessage());
     }
 }
-
 /*
 
 CREATE TABLE "user" (
