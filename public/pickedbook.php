@@ -909,6 +909,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
                     }
                 }
 
+                .exchange-search {
+                    width: 100%;
+                    padding: clamp(0.5rem, 1.5vh, 0.8rem);
+                    border: 1px solid rgba(99, 99, 99, 0.37);
+                    border-radius: 8px;
+                    background-color: #ffffffbb;
+                    backdrop-filter: blur(5px);
+                    font-family: 'HovesDemiBold';
+                    color: #333333;
+                    font-size: clamp(0.8rem, 2vh, 1rem);
+                    margin-bottom: clamp(0.6rem, 1.5vh, 1rem);
+                    box-sizing: border-box;
+                }
+
+                .exchange-search::placeholder {
+                    color: #999999;
+                }
+
                 .exchange-list {
                     display: flex;
                     flex-direction: column;
@@ -926,6 +944,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
                     gap: 0.5rem;
                     word-wrap: break-word;
                     overflow-wrap: break-word;
+                }
+
+                .exchange-item.hidden {
+                    display: none;
                 }
 
                 .proposal-message,
@@ -1135,6 +1157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
                             <?php else: ?>
                                 <form method="post">
                                     <label>Selecciona tus libros para intercambiar:</label>
+                                    <input type="text" class="exchange-search" id="exchangeSearchInput" placeholder="Buscar por título o autor...">
                                     <div class="exchange-list">
                                         <?php foreach ($user_books as $ubook): ?>
                                             <div class="exchange-item">
@@ -1176,6 +1199,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
             </div>
 
     </main>
+
+    <script>
+        // Filtro de búsqueda para libros de intercambio
+        const exchangeSearchInput = document.getElementById('exchangeSearchInput');
+        const exchangeItems = document.querySelectorAll('.exchange-item');
+
+        if (exchangeSearchInput) {
+            exchangeSearchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase().trim();
+
+                exchangeItems.forEach(item => {
+                    const label = item.querySelector('label');
+                    const bookText = label ? label.textContent.toLowerCase() : '';
+
+                    if (searchTerm === '' || bookText.includes(searchTerm)) {
+                        item.classList.remove('hidden');
+                    } else {
+                        item.classList.add('hidden');
+                    }
+                });
+            });
+        }
+    </script>
+
 </body>
 
 </html>
