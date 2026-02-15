@@ -1,27 +1,31 @@
 <?php
 
-define('DB_HOST', 'localhost');
-define('DB_PORT', '5432');
-define('DB_NAME', 'leeya');
-define('DB_USER', 'postgres');
-define('DB_PASS', '123456');
-
 function getDBConnection()
 {
     try {
+        $host = getenv('DB_HOST');
+        $port = getenv('DB_PORT') ?: 5432;
+        $dbname = getenv('DB_NAME');
+        $user = getenv('DB_USER');
+        $pass = getenv('DB_PASS');
+
+        $dsn = "pgsql:host=$host;port=$port;dbname=$dbname;sslmode=require";
+
         $pdo = new PDO(
-            "pgsql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME,
-            DB_USER,
-            DB_PASS,
+            $dsn,
+            $user,
+            $pass,
             [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]
         );
+
         return $pdo;
+
     } catch (PDOException $e) {
-        die("Error de conexión PostgreSQL: " . $e->getMessage());
+        die("ERROR POSTGRES: " . $e->getMessage());
     }
 }
 
@@ -92,7 +96,7 @@ CREATE TABLE reports (
 );
 
 
-INSERT INTO user (
+INSERT INTO 'user' (
     name,
     email,
     passwd,
@@ -103,7 +107,7 @@ INSERT INTO user (
     'Admin',
     'admin@admin.com',
     '$2y$10$NOeiZ/8J45lVLSe2P/jb6.ZyRIoiSksFk2qBr03a29C/T3612KzAy', -- Contraseña temporal "123456"
-    CURDATE(),
+    CURRENT_DATE,
     'Sistema',
     'admin'
 );
