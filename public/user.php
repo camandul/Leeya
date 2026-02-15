@@ -770,7 +770,8 @@ if (isset($_SESSION['user_id'])) {
                     } ?></h1>
             <?php else: ?>
                 <h1>Mi catálogo</h1>
-            </div>
+            <?php endif; ?>
+        </div>
 
             <style>
                 .filtros {
@@ -885,9 +886,10 @@ if (isset($_SESSION['user_id'])) {
                         </div>
                     </form>
                 </div>
-            </div>
+        </div>
 
-            <div class="bookbox-container">
+        <?php if (!empty($books)): ?>
+        <div class="bookbox-container">
 
                 <?php foreach ($books as $book): ?>
 
@@ -924,10 +926,8 @@ if (isset($_SESSION['user_id'])) {
 
                     </div>
                 <?php endforeach; ?>
-            <?php endif; ?>
-
         </div>
-
+        <?php endif; ?>
 
     </main>
 

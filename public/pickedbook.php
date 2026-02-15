@@ -157,6 +157,8 @@ $edit_error = '';
 
 // Procesar edición
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['edit_book'])) {
+    $new_typeof = $_POST['typeof'] ?? $book['typeof'];
+    
     $update_data = [
         'name' => $_POST['name'] ?? $book['name'],
         'author' => $_POST['author'] ?? $book['author'],
@@ -165,19 +167,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['edit_boo
         'description' => $_POST['description'] ?? $book['description'],
         'qstatus' => $_POST['qstatus'] ?? $book['qstatus'],
         'bookpic' => $_POST['bookpic'] ?? $book['bookpic'],
-        'typeof' => $_POST['typeof'] ?? $book['typeof'],
+        'typeof' => $new_typeof,
     ];
 
-    // Según tipo, agrega campos
-    if ($_POST['typeof'] === 'Venta' || $_POST['typeof'] === 'Subasta') {
-        $update_data['price'] = $_POST['price'] ?? $book['price'];
-    } else {
+    // Limpiar y asignar campos según tipo de transacción
+    if ($new_typeof === 'Donacion' || $new_typeof === 'Intercambio') {
+        // No requiere precio ni fecha
         $update_data['price'] = null;
-    }
-    if ($_POST['typeof'] === 'Subasta') {
-        $update_data['limdate'] = $_POST['limdate'] ?? $book['limdate'];
-    } else {
         $update_data['limdate'] = null;
+    } elseif ($new_typeof === 'Venta') {
+        // Requiere precio, no requiere fecha
+        $price_value = isset($_POST['price']) && $_POST['price'] !== '' ? floatval($_POST['price']) : null;
+        $update_data['price'] = $price_value;
+        $update_data['limdate'] = null;
+    } elseif ($new_typeof === 'Subasta') {
+        // Requiere precio y fecha
+        $price_value = isset($_POST['price']) && $_POST['price'] !== '' ? floatval($_POST['price']) : null;
+        $limdate_value = isset($_POST['limdate']) && $_POST['limdate'] !== '' ? $_POST['limdate'] : null;
+        $update_data['price'] = $price_value;
+        $update_data['limdate'] = $limdate_value;
     }
 
     $update_data['fechalibro'] = $_POST['fechalibro'] ?? $book['fechalibro'];
@@ -1055,7 +1063,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
 
                             <div class="form-group">
                                 <label>Tipo de operación:</label>
-                                <select name="typeof" required>
+                                <select id="editTypeofSelect" name="typeof" required>
                                     <option value="Donacion" <?= $book['typeof'] == 'Donacion' ? 'selected' : ''; ?>>
                                         Donación
                                     </option>
@@ -1069,20 +1077,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
                                 </select>
                             </div>
 
-
-                            <div class="form-group">
-                                <?php if ($book['typeof'] === 'Venta' || $book['typeof'] === 'Subasta'): ?>
-                                    <label>Precio:</label>
-                                    <input class="form-control" type="number" name="price" min="0" step="any"
-                                        value="<?= htmlspecialchars($book['price']) ?>">
-                                <?php endif; ?>
+                            <div class="form-group" id="priceGroup">
+                                <label>Precio:</label>
+                                <input class="form-control" type="number" name="price" id="priceInput" min="0" step="any"
+                                    value="<?= htmlspecialchars($book['price'] ?? '') ?>">
                             </div>
 
-                            <div class="form-group">
-                                <?php if ($book['typeof'] === 'Subasta'): ?>
-                                    <label>Fecha límite de subasta:</label>
-                                    <input type="date" name="limdate" value="<?= htmlspecialchars($book['limdate']) ?>" min="<?= date('Y-m-d') ?>">
-                                <?php endif; ?>
+                            <div class="form-group" id="limdateGroup">
+                                <label>Fecha límite de subasta:</label>
+                                <input class="form-control" type="date" id="limdateInput" name="limdate" value="<?= htmlspecialchars($book['limdate'] ?? '') ?>" min="<?= date('Y-m-d') ?>">
                             </div>
 
                             <div class="form-group">
@@ -1093,6 +1096,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
 
                             <button class="editarboton" type="submit" class="functions">GUARDAR</button>
                         </form>
+
+                        <style>
+                            #priceGroup {
+                                display: <?= ($book['typeof'] === 'Venta' || $book['typeof'] === 'Subasta') ? 'flex' : 'none' ?>;
+                            }
+
+                            #limdateGroup {
+                                display: <?= $book['typeof'] === 'Subasta' ? 'flex' : 'none' ?>;
+                            }
+                        </style>
                     </div>
 
                     <div class="ownernoedit">
@@ -1215,6 +1228,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
     </main>
 
     <script>
+        // --- Funcionalidad de edición: mostrar/ocultar campos según tipo de transacción ---
+        const editTypeofSelect = document.getElementById('editTypeofSelect');
+        const priceGroup = document.getElementById('priceGroup');
+        const limdateGroup = document.getElementById('limdateGroup');
+        const priceInput = document.getElementById('priceInput');
+        const limdateInput = document.getElementById('limdateInput');
+
+        if (editTypeofSelect) {
+            editTypeofSelect.addEventListener('change', function() {
+                const selectedType = this.value;
+
+                // Limpiar valores cuando se cambia el tipo
+                if (selectedType === 'Donacion' || selectedType === 'Intercambio') {
+                    priceInput.value = '';
+                    limdateInput.value = '';
+                    priceGroup.style.display = 'none';
+                    limdateGroup.style.display = 'none';
+                } else if (selectedType === 'Venta') {
+                    limdateInput.value = '';
+                    priceGroup.style.display = 'flex';
+                    limdateGroup.style.display = 'none';
+                } else if (selectedType === 'Subasta') {
+                    priceGroup.style.display = 'flex';
+                    limdateGroup.style.display = 'flex';
+                }
+            });
+        }
+
         // Filtro de búsqueda para libros de intercambio
         const exchangeSearchInput = document.getElementById('exchangeSearchInput');
         const exchangeItems = document.querySelectorAll('.exchange-item');
