@@ -182,6 +182,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['edit_boo
 
     $update_data['fechalibro'] = $_POST['fechalibro'] ?? $book['fechalibro'];
 
+    // Validar fechas
+    $date_error = '';
+    if ($update_data['typeof'] === 'Subasta' && $update_data['limdate'] && strtotime($update_data['limdate']) < strtotime(date('Y-m-d'))) {
+        $date_error = 'La fecha límite de la subasta debe ser hoy o en el futuro.';
+    } elseif ($update_data['fechalibro'] && strtotime($update_data['fechalibro']) > strtotime(date('Y-m-d'))) {
+        $date_error = 'La fecha de publicación del libro no puede ser en el futuro.';
+    }
+
+    if ($date_error) {
+        $_SESSION['edit_error'] = $date_error;
+        header("Location: pickedbook.php?id=" . $book['id'] . "&edit=1");
+        exit();
+    }
+
     $result = updateBook($book['id'], $update_data);
     if ($result) {
         $_SESSION['edit_message'] = "¡Libro actualizado correctamente!";
@@ -1067,14 +1081,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
                             <div class="form-group">
                                 <?php if ($book['typeof'] === 'Subasta'): ?>
                                     <label>Fecha límite de subasta:</label>
-                                    <input type="date" name="limdate" value="<?= htmlspecialchars($book['limdate']) ?>">
+                                    <input type="date" name="limdate" value="<?= htmlspecialchars($book['limdate']) ?>" min="<?= date('Y-m-d') ?>">
                                 <?php endif; ?>
                             </div>
 
                             <div class="form-group">
                                 <label>Fecha de publicación original:</label>
                                 <input class="form-control" type="date" name="fechalibro"
-                                    value="<?= htmlspecialchars($book['fechalibro']) ?>">
+                                    value="<?= htmlspecialchars($book['fechalibro']) ?>" max="<?= date('Y-m-d') ?>">
                             </div>
 
                             <button class="editarboton" type="submit" class="functions">GUARDAR</button>

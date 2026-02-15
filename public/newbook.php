@@ -56,6 +56,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
         $error = 'Completa todos los campos obligatorios.';
     } elseif ($typeof === "Subasta" && !$limdate) {
         $error = 'Debes ingresar una fecha límite para la subasta.';
+    } elseif ($typeof === "Subasta" && $limdate && strtotime($limdate) < strtotime(date('Y-m-d'))) {
+        $error = 'La fecha límite de la subasta debe ser hoy o en el futuro.';
+    } elseif ($fechalibro && strtotime($fechalibro) > strtotime(date('Y-m-d'))) {
+        $error = 'La fecha de publicación del libro no puede ser en el futuro.';
     } else {
         $result = createBook($ownerid, $name, $author, $genre, $editorial, $description, $qstatus, $bookpic, $typeof, $status, $price, $limdate, $fechalibro);
         if ($result['success']) {
@@ -706,12 +710,12 @@ if (isset($_SESSION['newbook_message'])) {
 
                     <div class="form-group" id="fecha-group" style="display: none;">
                         <label for="monto">Fecha limite</label>
-                        <input type="date" id="fecha" name="fecha" placeholder="Fecha limite">
+                        <input type="date" id="fecha" name="fecha" placeholder="Fecha limite" min="<?= date('Y-m-d') ?>">
                     </div>
 
                     <div class="form-group">
                         <label for="fechalibro">Fecha de publicación del libro (original)</label>
-                        <input type="date" id="fechalibro" name="fechalibro" placeholder="Fecha de publicación del libro">
+                        <input type="date" id="fechalibro" name="fechalibro" placeholder="Fecha de publicación del libro" max="<?= date('Y-m-d') ?>">
                     </div>
 
                     <div class="form-buttons">
