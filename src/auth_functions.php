@@ -345,7 +345,8 @@ function createBook(
     $typeof,
     $status,
     $price = null,
-    $limdate = null
+    $limdate = null,
+    $fechalibro = null
 ) {
     try {
         $pdo = getDBConnection();
@@ -360,7 +361,8 @@ function createBook(
             '"qstatus"',
             '"bookpic"',
             '"typeof"',
-            '"status"'
+            '"status"',
+            '"fechapubli"'
         ];
 
         $placeholders = [
@@ -373,7 +375,8 @@ function createBook(
             ':qstatus',
             ':bookpic',
             ':typeof',
-            ':status'
+            ':status',
+            ':fechapubli'
         ];
 
         $params = [
@@ -386,7 +389,8 @@ function createBook(
             'qstatus' => $qstatus,
             'bookpic' => $bookpic,
             'typeof' => $typeof,
-            'status' => $status
+            'status' => $status,
+            'fechapubli' => date('Y-m-d')
         ];
 
         if ($price !== null) {
@@ -399,6 +403,12 @@ function createBook(
             $fields[] = '"limdate"';
             $placeholders[] = ':limdate';
             $params['limdate'] = $limdate;
+        }
+
+        if ($fechalibro !== null) {
+            $fields[] = '"fechalibro"';
+            $placeholders[] = ':fechalibro';
+            $params['fechalibro'] = $fechalibro;
         }
 
         $sql = sprintf(
@@ -1386,6 +1396,74 @@ function cancelOldProposals()
         
     } catch (PDOException $e) {
         error_log('PostgreSQL cancelOldProposals error: ' . $e->getMessage());
+    }
+}
+/* POSTGRESQL */
+
+
+/* POSTGRESQL */
+// Cancelar automáticamente propuestas de intercambio con libros no disponibles
+function cancelInvalidExchangeProposals()
+{
+    try {
+        $pdo = getDBConnection();
+
+        // Obtener todas las propuestas de intercambio en estado 'En proceso'
+        $sql = '
+            SELECT DISTINCT p."id"
+            FROM "proposal" p
+            WHERE p."status" = \'En proceso\'
+            AND p."id" IN (
+                SELECT pb."proposalid"
+                FROM "proposal_book" pb
+            )
+        ';
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+        $proposals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Para cada propuesta, validar que todos sus libros estén disponibles
+        foreach ($proposals as $proposal) {
+            $proposal_id = $proposal['id'];
+
+            // Obtener todos los libros ofrecidos en esta propuesta
+            $sql_books = '
+                SELECT b."id", b."status"
+                FROM "proposal_book" pb
+                JOIN "book" b ON pb."bookid" = b."id"
+                WHERE pb."proposalid" = :proposal_id
+            ';
+
+            $stmt_books = $pdo->prepare($sql_books);
+            $stmt_books->execute(['proposal_id' => $proposal_id]);
+            $books = $stmt_books->fetchAll(PDO::FETCH_ASSOC);
+
+            // Verificar si algún libro no está disponible o no existe
+            $should_cancel = false;
+            foreach ($books as $book) {
+                // Si el libro no existe o su status es FALSE (no disponible), cancelar propuesta
+                if ($book['status'] === null || $book['status'] === false || $book['status'] === 'f') {
+                    $should_cancel = true;
+                    break;
+                }
+            }
+
+            // Si no hay libros ofrecidos, también cancelar
+            if (empty($books)) {
+                $should_cancel = true;
+            }
+
+            // Cancelar la propuesta si está inválida
+            if ($should_cancel) {
+                $sql_cancel = 'UPDATE "proposal" SET "status" = \'Cancelada\' WHERE "id" = :proposal_id';
+                $stmt_cancel = $pdo->prepare($sql_cancel);
+                $stmt_cancel->execute(['proposal_id' => $proposal_id]);
+            }
+        }
+
+    } catch (PDOException $e) {
+        error_log('PostgreSQL cancelInvalidExchangeProposals error: ' . $e->getMessage());
     }
 }
 /* POSTGRESQL */

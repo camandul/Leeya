@@ -50,13 +50,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
     $price = isset($_POST['monto']) && $_POST['monto'] !== '' ? $_POST['monto'] : null;
 
     $limdate = isset($_POST['fecha']) && $_POST['fecha'] !== '' ? $_POST['fecha'] : null;
+    $fechalibro = isset($_POST['fechalibro']) && $_POST['fechalibro'] !== '' ? $_POST['fechalibro'] : null;
 
     if (empty($name) || empty($author) || empty($genre) || empty($editorial) || empty($description) || empty($bookpic) || empty($typeof) || $qstatus === '') {
         $error = 'Completa todos los campos obligatorios.';
     } elseif ($typeof === "Subasta" && !$limdate) {
         $error = 'Debes ingresar una fecha límite para la subasta.';
     } else {
-        $result = createBook($ownerid, $name, $author, $genre, $editorial, $description, $qstatus, $bookpic, $typeof, $status, $price, $limdate);
+        $result = createBook($ownerid, $name, $author, $genre, $editorial, $description, $qstatus, $bookpic, $typeof, $status, $price, $limdate, $fechalibro);
         if ($result['success']) {
             $_SESSION['newbook_message'] = $result['message'];
             header('Location: newbook.php');
@@ -706,6 +707,11 @@ if (isset($_SESSION['newbook_message'])) {
                     <div class="form-group" id="fecha-group" style="display: none;">
                         <label for="monto">Fecha limite</label>
                         <input type="date" id="fecha" name="fecha" placeholder="Fecha limite">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fechalibro">Fecha de publicación del libro (original)</label>
+                        <input type="date" id="fechalibro" name="fechalibro" placeholder="Fecha de publicación del libro">
                     </div>
 
                     <div class="form-buttons">

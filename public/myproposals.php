@@ -11,6 +11,7 @@ $user_role = '';
 refreshSessionUser();
 updateExpiredAuctions();
 cancelOldProposals();
+cancelInvalidExchangeProposals();
 
 if (isLoggedIn()) {
 

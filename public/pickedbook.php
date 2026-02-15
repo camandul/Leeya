@@ -8,6 +8,7 @@ $current_user_id = $_SESSION['user_id'] ?? null;
 $user_role = '';
 
 refreshSessionUser();
+cancelInvalidExchangeProposals();
 
 if (isLoggedIn()) {
 
@@ -178,6 +179,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['edit_boo
     } else {
         $update_data['limdate'] = null;
     }
+
+    $update_data['fechalibro'] = $_POST['fechalibro'] ?? $book['fechalibro'];
 
     $result = updateBook($book['id'], $update_data);
     if ($result) {
@@ -1046,6 +1049,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
                                 <?php endif; ?>
                             </div>
 
+                            <div class="form-group">
+                                <label>Fecha de publicación original:</label>
+                                <input class="form-control" type="date" name="fechalibro"
+                                    value="<?= htmlspecialchars($book['fechalibro']) ?>">
+                            </div>
+
                             <button class="editarboton" type="submit" class="functions">GUARDAR</button>
                         </form>
                     </div>
@@ -1073,6 +1082,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
                         <?php endif; ?>
                         <?php if ($book['price'] !== null): ?>
                             <p><b>Precio:</b> $<?= htmlspecialchars($book['price']) ?></p>
+                        <?php endif; ?>
+                        <?php if (!empty($book['fechapubli'])): ?>
+                            <p><b>Fecha de publicación en plataforma:</b> <?= htmlspecialchars($book['fechapubli']) ?></p>
+                        <?php endif; ?>
+                        <?php if (!empty($book['fechalibro'])): ?>
+                            <p><b>Fecha de publicación original:</b> <?= htmlspecialchars($book['fechalibro']) ?></p>
                         <?php endif; ?>
                     <?php endif; ?>
                 </div>
