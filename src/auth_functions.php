@@ -1416,3 +1416,139 @@ function getExchangeBooks($proposal_id)
     }
 }
 /* POSTGRESQL */
+
+
+/* POSTGRESQL */
+// Verificar si UN USUARIO ESPECÍFICO ya ha reseñado una propuesta
+function existsRatingForProposal($proposal_id, $rater_id)
+{
+    try {
+        $pdo = getDBConnection();
+        
+        // Intentar verificar en tabla rate con proposal_id (nueva estructura)
+        $sql = '
+            SELECT "id"
+            FROM "rate"
+            WHERE "proposal_id" = :proposal_id
+            AND "rater" = :rater_id
+            LIMIT 1
+        ';
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            'proposal_id' => $proposal_id,
+            'rater_id' => $rater_id
+        ]);
+        
+        $result = $stmt->fetch();
+        return $result !== false;
+        
+    } catch (PDOException $e) {
+        // Si la columna proposal_id no existe, usar fallback
+        error_log('PostgreSQL existsRatingForProposal error: ' . $e->getMessage());
+        return false;
+    }
+}
+/* POSTGRESQL */
+
+
+/* POSTGRESQL */
+// Guardar una reseña en la base de datos - permite que ambos usuarios reseñen
+function rateUser($rater_id, $ratee_id, $rating, $commentary, $proposal_id)
+{
+    try {
+        $pdo = getDBConnection();
+        
+        // Iniciar transacción
+        $pdo->beginTransaction();
+        
+        // Verificar si ESTE usuario ya reseñó esta propuesta
+        $checkSql = '
+            SELECT "id"
+            FROM "rate"
+            WHERE "proposal_id" = :proposal_id
+            AND "rater" = :rater_id
+            LIMIT 1
+        ';
+        
+        $checkStmt = $pdo->prepare($checkSql);
+        $checkStmt->execute([
+            'proposal_id' => $proposal_id,
+            'rater_id' => $rater_id
+        ]);
+        
+        // Si este usuario ya reseñó, rechazar
+        if ($checkStmt->fetch() !== false) {
+            $pdo->rollBack();
+            return false;
+        }
+        
+        // Guardar la reseña con proposal_id
+        $insertSql = '
+            INSERT INTO "rate" ("rater", "ratee", "rating", "commentary", "proposal_id", "ratedate")
+            VALUES (:rater_id, :ratee_id, :rating, :commentary, :proposal_id, CURRENT_DATE)
+        ';
+        
+        $insertStmt = $pdo->prepare($insertSql);
+        $insertResult = $insertStmt->execute([
+            'rater_id' => $rater_id,
+            'ratee_id' => $ratee_id,
+            'rating' => intval($rating),
+            'commentary' => $commentary,
+            'proposal_id' => $proposal_id
+        ]);
+        
+        if (!$insertResult) {
+            $pdo->rollBack();
+            return false;
+        }
+        
+        // Confirmar transacción
+        $pdo->commit();
+        return true;
+        
+    } catch (PDOException $e) {
+        error_log('PostgreSQL rateUser error: ' . $e->getMessage());
+        try {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+        } catch (Exception $rollbackError) {
+            error_log('Rollback error: ' . $rollbackError->getMessage());
+        }
+        return false;
+    }
+}
+/* POSTGRESQL */
+
+
+/* POSTGRESQL */
+// Obtener reseña de un usuario a otro si existe
+function getUserRating($rater_id, $ratee_id)
+{
+    try {
+        $pdo = getDBConnection();
+        
+        $sql = '
+            SELECT "rating", "commentary", "ratedate"
+            FROM "rate"
+            WHERE "rater" = :rater_id 
+            AND "ratee" = :ratee_id
+            ORDER BY "ratedate" DESC
+            LIMIT 1
+        ';
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            'rater_id' => $rater_id,
+            'ratee_id' => $ratee_id
+        ]);
+        
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+        
+    } catch (PDOException $e) {
+        error_log('PostgreSQL getUserRating error: ' . $e->getMessage());
+        return null;
+    }
+}
+/* POSTGRESQL */

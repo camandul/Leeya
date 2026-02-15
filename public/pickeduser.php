@@ -799,28 +799,6 @@ if (isset($_SESSION['ban_message'])) {
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
-
-            <?php if ($is_logged_in && $current_user_id != $user_id && $user_role !== 'admin'): ?>
-                <div class="resenaescribir">
-                    <form method="post">
-                        <h3>Escribir una reseña</h3>
-                        <div>
-                            <label for="stars">Estrellas:</label>
-                            <select name="stars" id="stars" required>
-                                <option value="">Selecciona</option>
-                                <?php for ($i = 1; $i <= 5; $i++): ?>
-                                    <option value="<?= $i ?>"><?= $i ?></option>
-                                <?php endfor; ?>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="rate_description">Descripción:</label>
-                            <textarea name="rate_description" id="rate_description" rows="2" required></textarea>
-                        </div>
-                        <button type="submit" name="rate_user" class="btn-save">Enviar reseña</button>
-                    </form>
-                </div>
-            <?php endif; ?>
         </div>
 
         <div class="report-container">

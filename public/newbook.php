@@ -647,7 +647,32 @@ if (isset($_SESSION['newbook_message'])) {
 
                     <div class="form-group">
                         <label for="editorial">Genero</label>
-                        <input type="text" id="genero" name="genero" placeholder="Ej: Realismo magico" required>
+                        <select id="genero" name="genero" required>
+                            <option value="">Selecciona un genero</option>
+                            <option value="Novela">Novela</option>
+                            <option value="Ficción">Ficción</option>
+                            <option value="Terror">Terror</option>
+                            <option value="Misterio">Misterio</option>
+                            <option value="Crimen">Crimen</option>
+                            <option value="Literatura infantil">Literatura infantil</option>
+                            <option value="Biografía">Biografía</option>
+                            <option value="Historia">Historia</option>
+                            <option value="Filosofía">Filosofía</option>
+                            <option value="Psicología">Psicología</option>
+                            <option value="Desarrollo personal">Desarrollo personal</option>
+                            <option value="Espiritualidad">Espiritualidad</option>
+                            <option value="Política">Política</option>
+                            <option value="Economía">Economía</option>
+                            <option value="Poesía">Poesía</option>
+                            <option value="Teatro">Teatro</option>
+                            <option value="Cuento">Cuento</option>
+                            <option value="Divulgación científica">Divulgación científica</option>
+                            <option value="Tecnología">Tecnología</option>
+                            <option value="Novela gráfica">Novela gráfica</option>
+                            <option value="Biografía">Biografía</option>
+                            <option value="Ciencias básicas">Ciencias básicas</option>
+                            <option value="Teoría musical">Teoría musical</option>
+                        </select>
                     </div>
 
                     <div class="form-group">

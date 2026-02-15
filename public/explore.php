@@ -761,8 +761,9 @@ if (isset($_SESSION['user_id'])) {
                         box-sizing: border-box;
 
                         img {
-                            width: auto;
+                            width: 100%;
                             height: 100%;
+                            object-fit: cover;
                         }
 
                     }

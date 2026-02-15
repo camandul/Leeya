@@ -580,7 +580,7 @@ if (isset($_SESSION['user_id'])) {
                 <div class="auth-links">
                     <p>¿Olvidaste tu contraseña? <a href="signup.php"><a href="mailto:leeyasoporte@outlook.com">ESCRIBE
                                 A
-                                SOPORTE (leeyasoporte@outlook.com)</a></p>
+                                SOPORTE (leeyasoporte@gmail.com)</a></p>
                 </div>
 
             </div>

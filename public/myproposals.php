@@ -61,6 +61,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
         header("Location: myproposals.php");
         exit();
     }
+    if (isset($_POST['rate_user'])) {
+        $proposal_id = intval($_POST['proposal_id']);
+        $ratee_id = intval($_POST['ratee_id']);
+        $rating = intval($_POST['stars']);
+        $commentary = trim($_POST['rate_description']);
+
+        // Validar datos básicos
+        if (empty($proposal_id) || empty($ratee_id) || $rating < 1 || $rating > 5 || empty($commentary)) {
+            $_SESSION['action_message'] = 'Los datos de la reseña no son válidos.';
+        } elseif (existsRatingForProposal($proposal_id, $_SESSION['user_id'])) {
+            $_SESSION['action_message'] = 'Ya has reseñado esta transacción.';
+        } else {
+            $result = rateUser($_SESSION['user_id'], $ratee_id, $rating, htmlspecialchars($commentary), $proposal_id);
+            if ($result) {
+                $_SESSION['action_message'] = 'Reseña enviada exitosamente.';
+            } else {
+                $_SESSION['action_message'] = 'Error al enviar la reseña. Por favor intenta de nuevo.';
+            }
+        }
+
+        header("Location: myproposals.php");
+        exit();
+    }
 }
 
 // Mensajes POST/REDIRECT/GET
@@ -428,7 +451,7 @@ $badge_text = $total_pending > 9 ? '+9' : ($total_pending > 0 ? $total_pending :
                     display: flex;
                     align-items: flex-start;
                     justify-content: center;
-                    color: #333333  ;
+                    color: #333333;
                     margin: 0;
                     padding: 0;
                     overflow: hidden;
@@ -508,6 +531,70 @@ $badge_text = $total_pending > 9 ? '+9' : ($total_pending > 0 ? $total_pending :
                 border: 1px solid #d3dbff;
                 margin-top: clamp(2rem, 10vh, 3.8rem);
             }
+
+            .resenaescribir {
+                width: 100%;
+                border-top: 1px solid rgba(99, 99, 99, 0.37);
+                margin-top: clamp(.8rem, 4vh, 1.5rem);
+                padding-top: clamp(.8rem, 4vh, 1.5rem);
+            }
+
+            .resenaescribir h3 {
+                color: #333333;
+                font-size: clamp(.9rem, 4vh, 1.1rem);
+                margin: 0 0 clamp(.6rem, 3vh, 1rem) 0;
+            }
+
+            .resenaescribir form {
+                display: flex;
+                flex-direction: column;
+                gap: clamp(.6rem, 3vh, 1rem);
+                width: 100%;
+            }
+
+            .resenaescribir div {
+                display: flex;
+                flex-direction: column;
+                gap: 0.4rem;
+            }
+
+            .resenaescribir label {
+                color: #333333;
+                font-size: clamp(.8rem, 3vh, .9rem);
+                font-weight: bold;
+            }
+
+            .resenaescribir select,
+            .resenaescribir textarea {
+                padding: 0.6rem;
+                border: 1px solid rgba(99, 99, 99, 0.37);
+                border-radius: 0.5rem;
+                font-family: 'HovesDemiBold';
+                color: #333333;
+                background-color: rgba(216, 216, 216, 0.53);
+                font-size: clamp(.8rem, 3vh, .9rem);
+            }
+
+            .resenaescribir textarea {
+                resize: vertical;
+                min-height: 60px;
+            }
+
+            .resenaescribir button {
+                padding: 0.8rem 1.5rem;
+                background-color: #08083069;
+                color: #333333;
+                border: 1px solid rgba(99, 99, 99, 0.37);
+                border-radius: 0.6rem;
+                font-family: 'HovesDemiBold';
+                font-size: clamp(.8rem, 3vh, .9rem);
+                cursor: pointer;
+                transition: background-color 0.3s ease;
+            }
+
+            .resenaescribir button:hover {
+                background-color: #08083090;
+            }
         </style>
 
 
@@ -583,6 +670,40 @@ $badge_text = $total_pending > 9 ? '+9' : ($total_pending > 0 ? $total_pending :
                             <?php endif; ?>
                         </div>
 
+                        <?php if ($p['status'] === 'Finalizada'): ?>
+                            <?php
+                            $already_rated = existsRatingForProposal($p['id'], $_SESSION['user_id']);
+                            if (!$already_rated):
+                                ?>
+                                <div class="resenaescribir">
+                                    <form method="post">
+                                        <h3>Escribir una reseña</h3>
+                                        <div>
+                                            <label for="stars_sent_<?= $p['id'] ?>">Estrellas:</label>
+                                            <select name="stars" id="stars_sent_<?= $p['id'] ?>" required>
+                                                <option value="">Selecciona</option>
+                                                <?php for ($i = 1; $i <= 5; $i++): ?>
+                                                    <option value="<?= $i ?>"><?= $i ?></option>
+                                                <?php endfor; ?>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="rate_description_sent_<?= $p['id'] ?>">Descripción:</label>
+                                            <textarea name="rate_description" id="rate_description_sent_<?= $p['id'] ?>" rows="2"
+                                                required></textarea>
+                                        </div>
+                                        <input type="hidden" name="proposal_id" value="<?= $p['id'] ?>">
+                                        <input type="hidden" name="ratee_id" value="<?= $p['owner_id'] ?>">
+                                        <button type="submit" name="rate_user" class="btn-save">Enviar reseña</button>
+                                    </form>
+                                </div>
+                            <?php else: ?>
+                                <div class="resenaescribir">
+                                    <p class="hola"><strong>✓ Ya has reseñado esta transacción</strong></p>
+                                </div>
+                            <?php endif; ?>
+                        <?php endif; ?>
+
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
@@ -602,6 +723,10 @@ $badge_text = $total_pending > 9 ? '+9' : ($total_pending > 0 ? $total_pending :
                 width: 100%;
                 overflow: hidden;
                 text-overflow: ellipsis;
+            }
+
+            .hola{
+                color: #333333;
             }
         </style>
 
@@ -676,6 +801,40 @@ $badge_text = $total_pending > 9 ? '+9' : ($total_pending > 0 ? $total_pending :
                                 </form>
                             <?php endif; ?>
                         </div>
+
+                        <?php if ($p['status'] === 'Finalizada'): ?>
+                            <?php
+                            $already_rated = existsRatingForProposal($p['id'], $_SESSION['user_id']);
+                            if (!$already_rated):
+                                ?>
+                                <div class="resenaescribir">
+                                    <form method="post">
+                                        <h3>Escribir una reseña</h3>
+                                        <div>
+                                            <label for="stars_received_<?= $p['id'] ?>">Estrellas:</label>
+                                            <select name="stars" id="stars_received_<?= $p['id'] ?>" required>
+                                                <option value="">Selecciona</option>
+                                                <?php for ($i = 1; $i <= 5; $i++): ?>
+                                                    <option value="<?= $i ?>"><?= $i ?></option>
+                                                <?php endfor; ?>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="rate_description_received_<?= $p['id'] ?>">Descripción:</label>
+                                            <textarea name="rate_description" id="rate_description_received_<?= $p['id'] ?>" rows="2"
+                                                required></textarea>
+                                        </div>
+                                        <input type="hidden" name="proposal_id" value="<?= $p['id'] ?>">
+                                        <input type="hidden" name="ratee_id" value="<?= $p['interested_id'] ?>">
+                                        <button type="submit" name="rate_user" class="btn-save">Enviar reseña</button>
+                                    </form>
+                                </div>
+                            <?php else: ?>
+                                <div class="resenaescribir">
+                                    <p class="hola"><strong>✓ Ya has reseñado esta transacción</strong></p>
+                                </div>
+                            <?php endif; ?>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
