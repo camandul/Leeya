@@ -57,6 +57,12 @@ if ($user['userrole'] === 'banned' && $user_role !== 'admin') {
 
 $rates = getUserRates($user_id);
 
+// Obtener libros disponibles del usuario
+$user_books = getBooksByUserId($user_id);
+$available_books = array_filter($user_books, function($book) {
+    return $book['status'] === true;
+});
+
 $rate_message = '';
 $rate_error = '';
 $report_message = '';
@@ -799,28 +805,6 @@ if (isset($_SESSION['ban_message'])) {
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
-
-            <?php if ($is_logged_in && $current_user_id != $user_id && $user_role !== 'admin'): ?>
-                <div class="resenaescribir">
-                    <form method="post">
-                        <h3>Escribir una reseña</h3>
-                        <div>
-                            <label for="stars">Estrellas:</label>
-                            <select name="stars" id="stars" required>
-                                <option value="">Selecciona</option>
-                                <?php for ($i = 1; $i <= 5; $i++): ?>
-                                    <option value="<?= $i ?>"><?= $i ?></option>
-                                <?php endfor; ?>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="rate_description">Descripción:</label>
-                            <textarea name="rate_description" id="rate_description" rows="2" required></textarea>
-                        </div>
-                        <button type="submit" name="rate_user" class="btn-save">Enviar reseña</button>
-                    </form>
-                </div>
-            <?php endif; ?>
         </div>
 
         <div class="report-container">
@@ -877,6 +861,142 @@ if (isset($_SESSION['ban_message'])) {
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
+        </div>
+
+        <style>
+            .catalogo-usuario {
+                width: 100%;
+                box-sizing: border-box;
+                margin-top: clamp(1.4rem, 6vh, 2.4rem);
+                margin-bottom: clamp(1.4rem, 6vh, 2.4rem);
+
+                >h2 {
+                    padding: clamp(.4rem, 4vh, .6rem) 0 clamp(1.4rem, 4vh, 2.2rem) 0;
+                    margin: 0;
+                    margin: 0 auto;
+                    text-align: center;
+                    color: #15152e;
+                }
+
+                .bookbox-container {
+                    border: 1px solid rgba(99, 99, 99, 0.37);
+                    background-color: #d8d8d888;
+                    backdrop-filter: blur(8px);
+                    width: 100%;
+                    padding: clamp(.8rem, 2vw, 2.2rem);
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: clamp(.8rem, 4vh, 1.5rem);
+                    border-radius: clamp(1rem, 1.5vw, 2rem);
+                    box-sizing: border-box;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+                }
+
+                .fullbook {
+                    flex: 1 1 280px;
+                    background-color: #d8d8d888;
+                    border: 1px solid rgba(99, 99, 99, 0.37);
+                    box-sizing: border-box;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-radius: clamp(15px, 1.8vw, 22px);
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+                    padding: clamp(10px, 1.8vw, 15px);
+                    text-decoration: none;
+                    color: #333333;
+                    transition: all 0.3s ease;
+                    cursor: pointer;
+
+                    &:hover {
+                        background-color: #c9c9c999;
+                        transform: translateY(-4px);
+                    }
+
+                    .bookbox {
+                        width: 100%;
+                        height: 150px;
+                        background-color: white;
+                        border: 1px solid rgba(99, 99, 99, 0.2);
+                        border-radius: 8px;
+                        overflow: hidden;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        margin-bottom: 10px;
+
+                        img {
+                            width: 100%;
+                            height: 100%;
+                            object-fit: cover;
+                        }
+                    }
+
+                    .infolibro {
+                        width: 100%;
+                        display: flex;
+                        flex-direction: column;
+                        text-align: center;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        gap: 4px;
+
+                        h3 {
+                            margin: 0;
+                            padding: 0;
+                            font-size: clamp(.85rem, 2vh, 1rem);
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            display: -webkit-box;
+                            -webkit-line-clamp: 2;
+                            -webkit-box-orient: vertical;
+                        }
+
+                        p {
+                            margin: 0;
+                            padding: 0;
+                            font-size: clamp(.75rem, 1.5vh, .85rem);
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            color: #666666;
+                        }
+
+                        span {
+                            font-size: clamp(.7rem, 1.2vh, .8rem);
+                            color: #888888;
+                        }
+                    }
+                }
+
+                .mensaje-vacio {
+                    color: #333333;
+                    text-align: center;
+                    font-size: clamp(1rem, 3vh, 1.2rem);
+                }
+            }
+        </style>
+
+        <div class="catalogo-usuario">
+            <h2>Catálogo de <?= htmlspecialchars($user['name']) ?></h2>
+            <div class="bookbox-container">
+                <?php if (empty($available_books)): ?>
+                    <p class="mensaje-vacio">Este usuario no ha registrado libros</p>
+                <?php else: ?>
+                    <?php foreach ($available_books as $book): ?>
+                        <a href="pickedbook.php?id=<?= $book['id'] ?>" class="fullbook">
+                            <div class="bookbox">
+                                <img src="<?= htmlspecialchars($book['bookpic']) ?>" alt="<?= htmlspecialchars($book['name']) ?>">
+                            </div>
+                            <div class="infolibro">
+                                <h3><?= htmlspecialchars($book['name']) ?></h3>
+                                <p><strong><?= htmlspecialchars($book['author']) ?></strong></p>
+                                <span><?= htmlspecialchars($book['typeof']) ?></span>
+                            </div>
+                        </a>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
         </div>
     </main>
 </body>

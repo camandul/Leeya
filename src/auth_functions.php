@@ -345,7 +345,8 @@ function createBook(
     $typeof,
     $status,
     $price = null,
-    $limdate = null
+    $limdate = null,
+    $fechalibro = null
 ) {
     try {
         $pdo = getDBConnection();
@@ -360,7 +361,8 @@ function createBook(
             '"qstatus"',
             '"bookpic"',
             '"typeof"',
-            '"status"'
+            '"status"',
+            '"fechapubli"'
         ];
 
         $placeholders = [
@@ -373,7 +375,8 @@ function createBook(
             ':qstatus',
             ':bookpic',
             ':typeof',
-            ':status'
+            ':status',
+            ':fechapubli'
         ];
 
         $params = [
@@ -386,7 +389,8 @@ function createBook(
             'qstatus' => $qstatus,
             'bookpic' => $bookpic,
             'typeof' => $typeof,
-            'status' => $status
+            'status' => $status,
+            'fechapubli' => date('Y-m-d')
         ];
 
         if ($price !== null) {
@@ -399,6 +403,12 @@ function createBook(
             $fields[] = '"limdate"';
             $placeholders[] = ':limdate';
             $params['limdate'] = $limdate;
+        }
+
+        if ($fechalibro !== null) {
+            $fields[] = '"fechalibro"';
+            $placeholders[] = ':fechalibro';
+            $params['fechalibro'] = $fechalibro;
         }
 
         $sql = sprintf(
@@ -550,7 +560,7 @@ function getLatestBooks($limit = 4, $exclude_user_id = null)
 
 /* POSTGRESQL */
 // Obtener los libros para explore
-function searchBooks($search = '', $type = '', $exclude_user_id = null, $current_user_role = 'user')
+function searchBooks($search = '', $type = '', $exclude_user_id = null, $current_user_role = 'user', $location = '', $genre = '')
 {
     try {
         $pdo = getDBConnection();
@@ -590,6 +600,16 @@ function searchBooks($search = '', $type = '', $exclude_user_id = null, $current
                 )
             ';
             $params['search'] = '%' . $search . '%';
+        }
+
+        if ($location !== '') {
+            $sql .= ' AND u."location" = :location';
+            $params['location'] = $location;
+        }
+
+        if ($genre !== '') {
+            $sql .= ' AND b."genre" = :genre';
+            $params['genre'] = $genre;
         }
 
         $sql .= ' ORDER BY b."id" DESC';
@@ -1392,6 +1412,74 @@ function cancelOldProposals()
 
 
 /* POSTGRESQL */
+// Cancelar automáticamente propuestas de intercambio con libros no disponibles
+function cancelInvalidExchangeProposals()
+{
+    try {
+        $pdo = getDBConnection();
+
+        // Obtener todas las propuestas de intercambio en estado 'En proceso'
+        $sql = '
+            SELECT DISTINCT p."id"
+            FROM "proposal" p
+            WHERE p."status" = \'En proceso\'
+            AND p."id" IN (
+                SELECT pb."proposalid"
+                FROM "proposal_book" pb
+            )
+        ';
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+        $proposals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Para cada propuesta, validar que todos sus libros estén disponibles
+        foreach ($proposals as $proposal) {
+            $proposal_id = $proposal['id'];
+
+            // Obtener todos los libros ofrecidos en esta propuesta
+            $sql_books = '
+                SELECT b."id", b."status"
+                FROM "proposal_book" pb
+                JOIN "book" b ON pb."bookid" = b."id"
+                WHERE pb."proposalid" = :proposal_id
+            ';
+
+            $stmt_books = $pdo->prepare($sql_books);
+            $stmt_books->execute(['proposal_id' => $proposal_id]);
+            $books = $stmt_books->fetchAll(PDO::FETCH_ASSOC);
+
+            // Verificar si algún libro no está disponible o no existe
+            $should_cancel = false;
+            foreach ($books as $book) {
+                // Si el libro no existe o su status es FALSE (no disponible), cancelar propuesta
+                if ($book['status'] === null || $book['status'] === false || $book['status'] === 'f') {
+                    $should_cancel = true;
+                    break;
+                }
+            }
+
+            // Si no hay libros ofrecidos, también cancelar
+            if (empty($books)) {
+                $should_cancel = true;
+            }
+
+            // Cancelar la propuesta si está inválida
+            if ($should_cancel) {
+                $sql_cancel = 'UPDATE "proposal" SET "status" = \'Cancelada\' WHERE "id" = :proposal_id';
+                $stmt_cancel = $pdo->prepare($sql_cancel);
+                $stmt_cancel->execute(['proposal_id' => $proposal_id]);
+            }
+        }
+
+    } catch (PDOException $e) {
+        error_log('PostgreSQL cancelInvalidExchangeProposals error: ' . $e->getMessage());
+    }
+}
+/* POSTGRESQL */
+
+
+/* POSTGRESQL */
 // Obtener libros ofrecidos en una propuesta de intercambio
 function getExchangeBooks($proposal_id)
 {
@@ -1413,6 +1501,261 @@ function getExchangeBooks($proposal_id)
     } catch (PDOException $e) {
         error_log('PostgreSQL getExchangeBooks error: ' . $e->getMessage());
         return [];
+    }
+}
+/* POSTGRESQL */
+
+
+/* POSTGRESQL */
+// Verificar si UN USUARIO ESPECÍFICO ya ha reseñado una propuesta
+function existsRatingForProposal($proposal_id, $rater_id)
+{
+    try {
+        $pdo = getDBConnection();
+        
+        // Intentar verificar en tabla rate con proposal_id (nueva estructura)
+        $sql = '
+            SELECT "id"
+            FROM "rate"
+            WHERE "proposal_id" = :proposal_id
+            AND "rater" = :rater_id
+            LIMIT 1
+        ';
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            'proposal_id' => $proposal_id,
+            'rater_id' => $rater_id
+        ]);
+        
+        $result = $stmt->fetch();
+        return $result !== false;
+        
+    } catch (PDOException $e) {
+        // Si la columna proposal_id no existe, usar fallback
+        error_log('PostgreSQL existsRatingForProposal error: ' . $e->getMessage());
+        return false;
+    }
+}
+/* POSTGRESQL */
+
+
+/* POSTGRESQL */
+// Guardar una reseña en la base de datos - permite que ambos usuarios reseñen
+function rateUser($rater_id, $ratee_id, $rating, $commentary, $proposal_id)
+{
+    try {
+        $pdo = getDBConnection();
+        
+        // Iniciar transacción
+        $pdo->beginTransaction();
+        
+        // Verificar si ESTE usuario ya reseñó esta propuesta
+        $checkSql = '
+            SELECT "id"
+            FROM "rate"
+            WHERE "proposal_id" = :proposal_id
+            AND "rater" = :rater_id
+            LIMIT 1
+        ';
+        
+        $checkStmt = $pdo->prepare($checkSql);
+        $checkStmt->execute([
+            'proposal_id' => $proposal_id,
+            'rater_id' => $rater_id
+        ]);
+        
+        // Si este usuario ya reseñó, rechazar
+        if ($checkStmt->fetch() !== false) {
+            $pdo->rollBack();
+            return false;
+        }
+        
+        // Guardar la reseña con proposal_id
+        $insertSql = '
+            INSERT INTO "rate" ("rater", "ratee", "rating", "commentary", "proposal_id", "ratedate")
+            VALUES (:rater_id, :ratee_id, :rating, :commentary, :proposal_id, CURRENT_DATE)
+        ';
+        
+        $insertStmt = $pdo->prepare($insertSql);
+        $insertResult = $insertStmt->execute([
+            'rater_id' => $rater_id,
+            'ratee_id' => $ratee_id,
+            'rating' => intval($rating),
+            'commentary' => $commentary,
+            'proposal_id' => $proposal_id
+        ]);
+        
+        if (!$insertResult) {
+            $pdo->rollBack();
+            return false;
+        }
+        
+        // Confirmar transacción
+        $pdo->commit();
+        return true;
+        
+    } catch (PDOException $e) {
+        error_log('PostgreSQL rateUser error: ' . $e->getMessage());
+        try {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+        } catch (Exception $rollbackError) {
+            error_log('Rollback error: ' . $rollbackError->getMessage());
+        }
+        return false;
+    }
+}
+/* POSTGRESQL */
+
+
+/* POSTGRESQL */
+// Obtener reseña de un usuario a otro si existe
+function getUserRating($rater_id, $ratee_id)
+{
+    try {
+        $pdo = getDBConnection();
+        
+        $sql = '
+            SELECT "rating", "commentary", "ratedate"
+            FROM "rate"
+            WHERE "rater" = :rater_id 
+            AND "ratee" = :ratee_id
+            ORDER BY "ratedate" DESC
+            LIMIT 1
+        ';
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            'rater_id' => $rater_id,
+            'ratee_id' => $ratee_id
+        ]);
+        
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+        
+    } catch (PDOException $e) {
+        error_log('PostgreSQL getUserRating error: ' . $e->getMessage());
+        return null;
+    }
+}
+/* POSTGRESQL */
+
+
+/* POSTGRESQL */
+// Obtener estadísticas del balance del usuario
+function getUserBalance($user_id)
+{
+    try {
+        $pdo = getDBConnection();
+
+        // Verificar que el usuario existe
+        $check = $pdo->prepare('SELECT "id" FROM "user" WHERE "id" = :user_id LIMIT 1');
+        $check->execute(['user_id' => $user_id]);
+        if (!$check->fetch()) {
+            return [
+                'total_transactions' => 0,
+                'books_given' => 0,
+                'books_acquired' => 0,
+                'money_earned' => 0,
+                'money_invested' => 0,
+                'net_balance' => 0
+            ];
+        }
+
+        // Total de transacciones completadas (propuestas finalizadas)
+        // Cuenta propuestas donde el usuario es interesado O propietario del libro
+        $stmt = $pdo->prepare('
+            SELECT COUNT(DISTINCT p."id") as total_transactions
+            FROM "proposal" p
+            LEFT JOIN "book" b ON p."targetbookid" = b."id"
+            WHERE (p."interested" = :user_id OR b."ownerid" = :user_id2)
+            AND p."status" = :status
+        ');
+        $stmt->execute([
+            'user_id' => $user_id,
+            'user_id2' => $user_id,
+            'status' => 'Finalizada'
+        ]);
+        $transactions = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Total de libros dados/vendidos (libros del usuario que fueron finalizados en propuestas)
+        $stmt = $pdo->prepare('
+            SELECT COUNT(DISTINCT p."targetbookid") as books_given
+            FROM "proposal" p
+            INNER JOIN "book" b ON p."targetbookid" = b."id"
+            WHERE b."ownerid" = :user_id
+            AND p."status" = :status
+        ');
+        $stmt->execute([
+            'user_id' => $user_id,
+            'status' => 'Finalizada'
+        ]);
+        $books_given = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Total de libros adquiridos (propuestas finalizadas donde el usuario es interesado)
+        $stmt = $pdo->prepare('
+            SELECT COUNT(*) as books_acquired
+            FROM "proposal"
+            WHERE "interested" = :user_id
+            AND "status" = :status
+        ');
+        $stmt->execute([
+            'user_id' => $user_id,
+            'status' => 'Finalizada'
+        ]);
+        $books_acquired = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Dinero generado (propuestas finalizadas donde el usuario es dueño del libro y hay dinero)
+        $stmt = $pdo->prepare('
+            SELECT COALESCE(SUM(p."money"), 0) as money_earned
+            FROM "proposal" p
+            INNER JOIN "book" b ON p."targetbookid" = b."id"
+            WHERE b."ownerid" = :user_id
+            AND p."status" = :status
+            AND p."money" IS NOT NULL
+            AND p."money" > 0
+        ');
+        $stmt->execute([
+            'user_id' => $user_id,
+            'status' => 'Finalizada'
+        ]);
+        $money_earned = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Dinero invertido (propuestas finalizadas donde el usuario es interesado y hay dinero)
+        $stmt = $pdo->prepare('
+            SELECT COALESCE(SUM(p."money"), 0) as money_invested
+            FROM "proposal" p
+            WHERE p."interested" = :user_id
+            AND p."status" = :status
+            AND p."money" IS NOT NULL
+            AND p."money" > 0
+        ');
+        $stmt->execute([
+            'user_id' => $user_id,
+            'status' => 'Finalizada'
+        ]);
+        $money_invested = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return [
+            'total_transactions' => intval($transactions['total_transactions'] ?? 0),
+            'books_given' => intval($books_given['books_given'] ?? 0),
+            'books_acquired' => intval($books_acquired['books_acquired'] ?? 0),
+            'money_earned' => floatval($money_earned['money_earned'] ?? 0),
+            'money_invested' => floatval($money_invested['money_invested'] ?? 0),
+            'net_balance' => floatval(($money_earned['money_earned'] ?? 0) - ($money_invested['money_invested'] ?? 0))
+        ];
+
+    } catch (PDOException $e) {
+        error_log('PostgreSQL getUserBalance error: ' . $e->getMessage());
+        return [
+            'total_transactions' => 0,
+            'books_given' => 0,
+            'books_acquired' => 0,
+            'money_earned' => 0,
+            'money_invested' => 0,
+            'net_balance' => 0
+        ];
     }
 }
 /* POSTGRESQL */

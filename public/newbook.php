@@ -50,13 +50,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
     $price = isset($_POST['monto']) && $_POST['monto'] !== '' ? $_POST['monto'] : null;
 
     $limdate = isset($_POST['fecha']) && $_POST['fecha'] !== '' ? $_POST['fecha'] : null;
+    $fechalibro = isset($_POST['fechalibro']) && $_POST['fechalibro'] !== '' ? $_POST['fechalibro'] : null;
 
     if (empty($name) || empty($author) || empty($genre) || empty($editorial) || empty($description) || empty($bookpic) || empty($typeof) || $qstatus === '') {
         $error = 'Completa todos los campos obligatorios.';
     } elseif ($typeof === "Subasta" && !$limdate) {
         $error = 'Debes ingresar una fecha límite para la subasta.';
+    } elseif ($typeof === "Subasta" && $limdate && strtotime($limdate) < strtotime(date('Y-m-d'))) {
+        $error = 'La fecha límite de la subasta debe ser hoy o en el futuro.';
+    } elseif ($fechalibro && strtotime($fechalibro) > strtotime(date('Y-m-d'))) {
+        $error = 'La fecha de publicación del libro no puede ser en el futuro.';
     } else {
-        $result = createBook($ownerid, $name, $author, $genre, $editorial, $description, $qstatus, $bookpic, $typeof, $status, $price, $limdate);
+        $result = createBook($ownerid, $name, $author, $genre, $editorial, $description, $qstatus, $bookpic, $typeof, $status, $price, $limdate, $fechalibro);
         if ($result['success']) {
             $_SESSION['newbook_message'] = $result['message'];
             header('Location: newbook.php');
@@ -641,13 +646,37 @@ if (isset($_SESSION['newbook_message'])) {
 
                     <div class="form-group">
                         <label for="editorial">Imagen del libro</label>
-                        <input type="text" id="imagen" name="imagen" placeholder="Ingresa el link de tu imagen"
-                            required>
+                        <input type="text" id="imagen" name="imagen" placeholder="Ingresa el link de tu imagen">
                     </div>
 
                     <div class="form-group">
                         <label for="editorial">Genero</label>
-                        <input type="text" id="genero" name="genero" placeholder="Ej: Realismo magico" required>
+                        <select id="genero" name="genero" required>
+                            <option value="">Selecciona un genero</option>
+                            <option value="Novela">Novela</option>
+                            <option value="Ficción">Ficción</option>
+                            <option value="Terror">Terror</option>
+                            <option value="Misterio">Misterio</option>
+                            <option value="Crimen">Crimen</option>
+                            <option value="Literatura infantil">Literatura infantil</option>
+                            <option value="Biografía">Biografía</option>
+                            <option value="Historia">Historia</option>
+                            <option value="Filosofía">Filosofía</option>
+                            <option value="Psicología">Psicología</option>
+                            <option value="Desarrollo personal">Desarrollo personal</option>
+                            <option value="Espiritualidad">Espiritualidad</option>
+                            <option value="Política">Política</option>
+                            <option value="Economía">Economía</option>
+                            <option value="Poesía">Poesía</option>
+                            <option value="Teatro">Teatro</option>
+                            <option value="Cuento">Cuento</option>
+                            <option value="Divulgación científica">Divulgación científica</option>
+                            <option value="Tecnología">Tecnología</option>
+                            <option value="Novela gráfica">Novela gráfica</option>
+                            <option value="Biografía">Biografía</option>
+                            <option value="Ciencias básicas">Ciencias básicas</option>
+                            <option value="Teoría musical">Teoría musical</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
@@ -681,7 +710,14 @@ if (isset($_SESSION['newbook_message'])) {
 
                     <div class="form-group" id="fecha-group" style="display: none;">
                         <label for="monto">Fecha limite</label>
-                        <input type="date" id="fecha" name="fecha" placeholder="Fecha limite">
+                        <input type="date" id="fecha" name="fecha" placeholder="Fecha limite"
+                            min="<?= date('Y-m-d') ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fechalibro">Fecha de publicación del libro (original)</label>
+                        <input type="date" id="fechalibro" name="fechalibro"
+                            placeholder="Fecha de publicación del libro" max="<?= date('Y-m-d') ?>">
                     </div>
 
                     <div class="form-buttons">
@@ -793,6 +829,46 @@ if (isset($_SESSION['newbook_message'])) {
 
             // Inicializar al cargar la página
             updatePreview();
+
+            // --- Alert de recomendación para libros antiguos de ciencia/tecnología ---
+            const generoSelect = document.getElementById("genero");
+            const fechalibroInput = document.getElementById("fechalibro");
+            let hasShownAlert = false;
+
+            function checkAndShowAlert() {
+                const genre = generoSelect.value;
+                const transactionType = trxSelect.value;
+                const bookDate = fechalibroInput.value;
+
+                // Verificar si es un género de ciencia/tecnología
+                const isScientificOrTech = genre === "Divulgación científica" || genre === "Tecnología";
+
+                // Verificar si es venta o subasta
+                const isSaleOrAuction = transactionType === "Venta" || transactionType === "Subasta";
+
+                // Calcular si el libro es más viejo de 8 años
+                let isOlderThan8Years = false;
+                if (bookDate) {
+                    const publishDate = new Date(bookDate);
+                    const today = new Date();
+                    const ageInYears = today.getFullYear() - publishDate.getFullYear();
+                    isOlderThan8Years = ageInYears > 8;
+                }
+
+                // Si se cumplen todas las condiciones y no se ha mostrado el alert aún
+                if (isScientificOrTech && isSaleOrAuction && isOlderThan8Years && !hasShownAlert) {
+                    alert("📚 Recomendación: Este libro de ciencia o tecnología tiene más de 8 años de antigüedad.\n\nLa información podría estar desactualizada. Considera donarlo o intercambiarlo en lugar de venderlo o subastar.");
+                    hasShownAlert = true;
+                } else if (!(isScientificOrTech && isSaleOrAuction && isOlderThan8Years)) {
+                    // Reiniciar la bandera si las condiciones ya no se cumplen
+                    hasShownAlert = false;
+                }
+            }
+
+            // Escuchar cambios en los campos relevantes
+            generoSelect.addEventListener("change", checkAndShowAlert);
+            fechalibroInput.addEventListener("change", checkAndShowAlert);
+            trxSelect.addEventListener("change", checkAndShowAlert);
         </script>
 
 

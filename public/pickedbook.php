@@ -8,6 +8,7 @@ $current_user_id = $_SESSION['user_id'] ?? null;
 $user_role = '';
 
 refreshSessionUser();
+cancelInvalidExchangeProposals();
 
 if (isLoggedIn()) {
 
@@ -177,6 +178,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['edit_boo
         $update_data['limdate'] = $_POST['limdate'] ?? $book['limdate'];
     } else {
         $update_data['limdate'] = null;
+    }
+
+    $update_data['fechalibro'] = $_POST['fechalibro'] ?? $book['fechalibro'];
+
+    // Validar fechas
+    $date_error = '';
+    if ($update_data['typeof'] === 'Subasta' && $update_data['limdate'] && strtotime($update_data['limdate']) < strtotime(date('Y-m-d'))) {
+        $date_error = 'La fecha límite de la subasta debe ser hoy o en el futuro.';
+    } elseif ($update_data['fechalibro'] && strtotime($update_data['fechalibro']) > strtotime(date('Y-m-d'))) {
+        $date_error = 'La fecha de publicación del libro no puede ser en el futuro.';
+    }
+
+    if ($date_error) {
+        $_SESSION['edit_error'] = $date_error;
+        header("Location: pickedbook.php?id=" . $book['id'] . "&edit=1");
+        exit();
     }
 
     $result = updateBook($book['id'], $update_data);
@@ -906,6 +923,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
                     }
                 }
 
+                .exchange-search {
+                    width: 100%;
+                    padding: clamp(0.5rem, 1.5vh, 0.8rem);
+                    border: 1px solid rgba(99, 99, 99, 0.37);
+                    border-radius: 8px;
+                    background-color: #ffffffbb;
+                    backdrop-filter: blur(5px);
+                    font-family: 'HovesDemiBold';
+                    color: #333333;
+                    font-size: clamp(0.8rem, 2vh, 1rem);
+                    margin-bottom: clamp(0.6rem, 1.5vh, 1rem);
+                    box-sizing: border-box;
+                }
+
+                .exchange-search::placeholder {
+                    color: #999999;
+                }
+
                 .exchange-list {
                     display: flex;
                     flex-direction: column;
@@ -923,6 +958,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
                     gap: 0.5rem;
                     word-wrap: break-word;
                     overflow-wrap: break-word;
+                }
+
+                .exchange-item.hidden {
+                    display: none;
                 }
 
                 .proposal-message,
@@ -1042,8 +1081,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
                             <div class="form-group">
                                 <?php if ($book['typeof'] === 'Subasta'): ?>
                                     <label>Fecha límite de subasta:</label>
-                                    <input type="date" name="limdate" value="<?= htmlspecialchars($book['limdate']) ?>">
+                                    <input type="date" name="limdate" value="<?= htmlspecialchars($book['limdate']) ?>" min="<?= date('Y-m-d') ?>">
                                 <?php endif; ?>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Fecha de publicación original:</label>
+                                <input class="form-control" type="date" name="fechalibro"
+                                    value="<?= htmlspecialchars($book['fechalibro']) ?>" max="<?= date('Y-m-d') ?>">
                             </div>
 
                             <button class="editarboton" type="submit" class="functions">GUARDAR</button>
@@ -1073,6 +1118,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
                         <?php endif; ?>
                         <?php if ($book['price'] !== null): ?>
                             <p><b>Precio:</b> $<?= htmlspecialchars($book['price']) ?></p>
+                        <?php endif; ?>
+                        <?php if (!empty($book['fechapubli'])): ?>
+                            <p><b>Fecha de publicación en plataforma:</b> <?= htmlspecialchars($book['fechapubli']) ?></p>
+                        <?php endif; ?>
+                        <?php if (!empty($book['fechalibro'])): ?>
+                            <p><b>Fecha de publicación original:</b> <?= htmlspecialchars($book['fechalibro']) ?></p>
                         <?php endif; ?>
                     <?php endif; ?>
                 </div>
@@ -1120,6 +1171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
                             <?php else: ?>
                                 <form method="post">
                                     <label>Selecciona tus libros para intercambiar:</label>
+                                    <input type="text" class="exchange-search" id="exchangeSearchInput" placeholder="Buscar por título o autor...">
                                     <div class="exchange-list">
                                         <?php foreach ($user_books as $ubook): ?>
                                             <div class="exchange-item">
@@ -1161,6 +1213,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_owner && isset($_POST['delete_b
             </div>
 
     </main>
+
+    <script>
+        // Filtro de búsqueda para libros de intercambio
+        const exchangeSearchInput = document.getElementById('exchangeSearchInput');
+        const exchangeItems = document.querySelectorAll('.exchange-item');
+
+        if (exchangeSearchInput) {
+            exchangeSearchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase().trim();
+
+                exchangeItems.forEach(item => {
+                    const label = item.querySelector('label');
+                    const bookText = label ? label.textContent.toLowerCase() : '';
+
+                    if (searchTerm === '' || bookText.includes(searchTerm)) {
+                        item.classList.remove('hidden');
+                    } else {
+                        item.classList.add('hidden');
+                    }
+                });
+            });
+        }
+    </script>
+
 </body>
 
 </html>

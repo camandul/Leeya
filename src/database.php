@@ -1,31 +1,27 @@
 <?php
 
+define('DB_HOST', 'localhost');
+define('DB_PORT', '5432');
+define('DB_NAME', 'leeya');
+define('DB_USER', 'postgres');
+define('DB_PASS', '123456');
+
 function getDBConnection()
 {
     try {
-        $host = getenv('DB_HOST');
-        $port = getenv('DB_PORT') ?: 5432;
-        $dbname = getenv('DB_NAME');
-        $user = getenv('DB_USER');
-        $pass = getenv('DB_PASS');
-
-        $dsn = "pgsql:host=$host;port=$port;dbname=$dbname;sslmode=require";
-
         $pdo = new PDO(
-            $dsn,
-            $user,
-            $pass,
+            "pgsql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME,
+            DB_USER,
+            DB_PASS,
             [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]
         );
-
         return $pdo;
-
     } catch (PDOException $e) {
-        die("ERROR POSTGRES: " . $e->getMessage());
+        die("Error de conexión PostgreSQL: " . $e->getMessage());
     }
 }
 
@@ -55,7 +51,9 @@ CREATE TABLE book (
     typeof VARCHAR(50),
     status BOOLEAN,
     price NUMERIC(10,2),
-    limdate DATE
+    limdate DATE,
+    fechapubli DATE,
+    fechalibro DATE
 );
 
 CREATE TABLE proposal (
@@ -79,7 +77,8 @@ CREATE TABLE rate (
     ratee INT REFERENCES "user"(id) ON DELETE CASCADE,
     rating NUMERIC,
     commentary VARCHAR(500),
-    ratedate DATE DEFAULT CURRENT_DATE
+    ratedate DATE DEFAULT CURRENT_DATE,
+    proposal_id INT REFERENCES "proposal"(id) ON DELETE CASCADE
 );
 
 CREATE TABLE reports (
