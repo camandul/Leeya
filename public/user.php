@@ -736,16 +736,155 @@ if (isset($_SESSION['user_id'])) {
         <?php
 
         $books = [];
+        $search = trim($_GET['search'] ?? '');
+        $type = trim($_GET['type'] ?? '');
+
         if ($is_logged_in && isset($_SESSION['user_id'])) {
             $books = getBooksByUserId($_SESSION['user_id']);
+
+            // Filtrar por búsqueda (nombre, autor, género)
+            if ($search !== '') {
+                $search_lower = strtolower($search);
+                $books = array_filter($books, function ($book) use ($search_lower) {
+                    return strpos(strtolower($book['name']), $search_lower) !== false ||
+                        strpos(strtolower($book['author']), $search_lower) !== false ||
+                        strpos(strtolower($book['genre']), $search_lower) !== false;
+                });
+            }
+
+            // Filtrar por tipo de transacción
+            if ($type !== '') {
+                $books = array_filter($books, function ($book) use ($type) {
+                    return $book['typeof'] === $type;
+                });
+            }
         }
         ?>
 
+
         <div class="header-container">
             <?php if (empty($books)): ?>
-                <h1>No tienes libros en tu catalogo</h1>
+                <h1>No tienes libros en tu
+                    catálogo<?php if ($search !== '' || $type !== '') {
+                        echo ' con esos criterios';
+                    } ?></h1>
             <?php else: ?>
-                <h1>Mi catalogo</h1>
+                <h1>Mi catálogo</h1>
+            </div>
+
+            <style>
+                .filtros {
+                    width: 92%;
+                    padding-top: clamp(2rem, 6vh, 3.2rem);
+                    padding-bottom: clamp(1.4rem, 6vh, 2.4rem);
+                    box-sizing: border-box;
+                    margin: 0 auto;
+                }
+
+                .filtrolibros {
+                    width: 100%;
+                    box-sizing: border-box;
+                    margin-bottom: clamp(.8rem, 3vh, 1.4rem);
+
+                    form {
+                        width: 100%;
+                        display: flex;
+                        flex-wrap: wrap;
+                        flex-direction: row;
+                        box-sizing: border-box;
+                        gap: clamp(.6rem, 4vh, 1rem);
+
+                        div:first-child {
+                            display: flex;
+                            flex: 1 1 400px;
+
+                            input {
+                                height: clamp(2rem, 8vh, 2.4rem);
+                                width: 100%;
+                            }
+                        }
+
+                        div:nth-child(2) {
+                            display: flex;
+                            flex: 1 1 400px;
+
+                            select {
+                                width: 100%;
+                                font-size: clamp(.8rem, 2vh, 1.2rem);
+                                font-family: 'HovesDemiBold';
+                                color: #333333;
+                                border: 1px solid rgba(99, 99, 99, 0.37);
+                                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+                                border-radius: clamp(.5rem, 8vh, 1.2rem);
+                                padding: 0 2rem 0 1rem;
+                                height: clamp(2rem, 8vh, 2.4rem);
+                            }
+                        }
+
+                        div:last-child {
+                            flex: 1 1 180px;
+                            display: flex;
+
+                            button {
+                                width: 100%;
+                                font-size: clamp(.8rem, 2vh, 1.2rem);
+                                font-family: 'HovesDemiBold';
+                                color: #333333;
+                                border: 1px solid rgba(99, 99, 99, 0.37);
+                                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+                                border-radius: clamp(.5rem, 8vh, 1.2rem);
+                                background-color: #08083069;
+                                height: clamp(2rem, 8vh, 2.4rem);
+                                cursor: pointer;
+                                transition: all 0.3s ease;
+                            }
+
+                            button:hover {
+                                background-color: #08083090;
+                            }
+                        }
+                    }
+                }
+
+                .form-control {
+                    width: 100%;
+                    height: clamp(1.6rem, 8vh, 2.2rem);
+                    border: 1px solid rgba(99, 99, 99, 0.37);
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+                    border-radius: clamp(.5rem, 8vh, 1.2rem);
+                    background-color: #d8d8d888;
+                    backdrop-filter: blur(5px);
+                    box-sizing: border-box;
+                    padding: 0 2rem 0 1rem;
+                    text-overflow: ellipsis;
+                    font-family: 'HovesDemiBold';
+                    color: #333333;
+                    font-size: clamp(.8rem, 2vh, 1.2rem);
+                }
+            </style>
+
+            <div class="filtros">
+                <div class="filtrolibros">
+                    <form method="get">
+                        <div>
+                            <input class="form-control" type="text" name="search" value="<?= htmlspecialchars($search) ?>"
+                                placeholder="Buscar por título, autor o género...">
+                        </div>
+                        <div>
+                            <select name="type">
+                                <option value="">Todos</option>
+                                <option value="Donacion" <?= $type == 'Donacion' ? 'selected' : ''; ?>>Donación</option>
+                                <option value="Venta" <?= $type == 'Venta' ? 'selected' : ''; ?>>Venta</option>
+                                <option value="Intercambio" <?= $type == 'Intercambio' ? 'selected' : ''; ?>>Intercambio
+                                </option>
+                                <option value="Subasta" <?= $type == 'Subasta' ? 'selected' : ''; ?>>Subasta</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button type="submit">BUSCAR</button>
+                        </div>
+                    </form>
+                </div>
             </div>
 
             <div class="bookbox-container">
