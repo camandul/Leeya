@@ -560,7 +560,7 @@ function getLatestBooks($limit = 4, $exclude_user_id = null)
 
 /* POSTGRESQL */
 // Obtener los libros para explore
-function searchBooks($search = '', $type = '', $exclude_user_id = null, $current_user_role = 'user')
+function searchBooks($search = '', $type = '', $exclude_user_id = null, $current_user_role = 'user', $location = '', $genre = '')
 {
     try {
         $pdo = getDBConnection();
@@ -600,6 +600,16 @@ function searchBooks($search = '', $type = '', $exclude_user_id = null, $current
                 )
             ';
             $params['search'] = '%' . $search . '%';
+        }
+
+        if ($location !== '') {
+            $sql .= ' AND u."location" = :location';
+            $params['location'] = $location;
+        }
+
+        if ($genre !== '') {
+            $sql .= ' AND b."genre" = :genre';
+            $params['genre'] = $genre;
         }
 
         $sql .= ' ORDER BY b."id" DESC';

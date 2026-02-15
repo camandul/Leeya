@@ -342,13 +342,20 @@ if (isset($_SESSION['user_id'])) {
         $search = trim($_GET['search'] ?? '');
         $type = trim($_GET['type'] ?? '');
         $search_user = trim($_GET['search_user'] ?? '');
+        $location = trim($_GET['location'] ?? '');
+        $genre = trim($_GET['genre'] ?? '');
         $exclude_user_id = $is_logged_in ? $_SESSION['user_id'] : null;
 
         // Obtener el rol del usuario actual (asumiendo que lo tienes en la sesión)
         $current_user_role = $is_logged_in ? ($_SESSION['user_role'] ?? 'user') : 'user';
 
+        // Si se selecciona "Libros en mi localidad", usar la ubicación del usuario actual
+        if ($location === 'mi_localidad' && $is_logged_in) {
+            $location = $_SESSION['user_location'] ?? '';
+        }
+
         // Libros filtrados
-        $books = searchBooks($search, $type, $exclude_user_id, $current_user_role);
+        $books = searchBooks($search, $type, $exclude_user_id, $current_user_role, $location, $genre);
 
         // Usuarios filtrados
         $users = [];
@@ -380,7 +387,7 @@ if (isset($_SESSION['user_id'])) {
 
                     div:first-child {
                         display: flex;
-                        flex: 1 1 400px;
+                        flex: 1 1 280px;
 
                         input {
                             height: clamp(2rem, 8vh, 2.4rem);
@@ -388,9 +395,11 @@ if (isset($_SESSION['user_id'])) {
                         }
                     }
 
-                    div:nth-child(2) {
+                    div:nth-child(2),
+                    div:nth-child(3),
+                    div:nth-child(4) {
                         display: flex;
-                        flex: 1 1 400px;
+                        flex: 1 1 200px;
 
                         select {
                             width: 100%;
@@ -406,7 +415,7 @@ if (isset($_SESSION['user_id'])) {
                     }
 
                     div:last-child {
-                        flex: 1 1 180px;
+                        flex: 1 1 140px;
                         display: flex;
 
                         button {
@@ -498,17 +507,72 @@ if (isset($_SESSION['user_id'])) {
                             placeholder="Buscar libro por título, autor o género...">
                     </div>
                     <div>
-                        <select name="type">
-                            <option value="">Todos</option>
+                        <select name="type" class="form-control">
+                            <option value="">Tipo - Todos</option>
                             <option value="Donacion" <?= $type == 'Donacion' ? 'selected' : ''; ?>>Donación</option>
                             <option value="Venta" <?= $type == 'Venta' ? 'selected' : ''; ?>>Venta</option>
-                            <option value="Intercambio" <?= $type == 'Intercambio' ? 'selected' : ''; ?>>Intercambio
-                            </option>
+                            <option value="Intercambio" <?= $type == 'Intercambio' ? 'selected' : ''; ?>>Intercambio</option>
                             <option value="Subasta" <?= $type == 'Subasta' ? 'selected' : ''; ?>>Subasta</option>
                         </select>
                     </div>
                     <div>
-                        <button type="submit">BUSCAR LIBRO</button>
+                        <select name="location" class="form-control">
+                            <option value="">Selecciona tu localidad</option>
+                            <?php if ($is_logged_in): ?>
+                            <option value="mi_localidad" <?= $location == ($_SESSION['user_location'] ?? '') && $location !== '' ? 'selected' : ''; ?>>Libros en mi localidad</option>
+                            <?php endif; ?>
+                            <option value="Usaquén" <?= $location == 'Usaquén' ? 'selected' : ''; ?>>Usaquén</option>
+                            <option value="Chapinero" <?= $location == 'Chapinero' ? 'selected' : ''; ?>>Chapinero</option>
+                            <option value="Santa Fe" <?= $location == 'Santa Fe' ? 'selected' : ''; ?>>Santa Fe</option>
+                            <option value="San Cristóbal" <?= $location == 'San Cristóbal' ? 'selected' : ''; ?>>San Cristóbal</option>
+                            <option value="Usme" <?= $location == 'Usme' ? 'selected' : ''; ?>>Usme</option>
+                            <option value="Tunjuelito" <?= $location == 'Tunjuelito' ? 'selected' : ''; ?>>Tunjuelito</option>
+                            <option value="Bosa" <?= $location == 'Bosa' ? 'selected' : ''; ?>>Bosa</option>
+                            <option value="Kennedy" <?= $location == 'Kennedy' ? 'selected' : ''; ?>>Kennedy</option>
+                            <option value="Fontibón" <?= $location == 'Fontibón' ? 'selected' : ''; ?>>Fontibón</option>
+                            <option value="Engativá" <?= $location == 'Engativá' ? 'selected' : ''; ?>>Engativá</option>
+                            <option value="Suba" <?= $location == 'Suba' ? 'selected' : ''; ?>>Suba</option>
+                            <option value="Barrios Unidos" <?= $location == 'Barrios Unidos' ? 'selected' : ''; ?>>Barrios Unidos</option>
+                            <option value="Teusaquillo" <?= $location == 'Teusaquillo' ? 'selected' : ''; ?>>Teusaquillo</option>
+                            <option value="Los Mártires" <?= $location == 'Los Mártires' ? 'selected' : ''; ?>>Los Mártires</option>
+                            <option value="Antonio Nariño" <?= $location == 'Antonio Nariño' ? 'selected' : ''; ?>>Antonio Nariño</option>
+                            <option value="Puente Aranda" <?= $location == 'Puente Aranda' ? 'selected' : ''; ?>>Puente Aranda</option>
+                            <option value="La Candelaria" <?= $location == 'La Candelaria' ? 'selected' : ''; ?>>La Candelaria</option>
+                            <option value="Rafael Uribe Uribe" <?= $location == 'Rafael Uribe Uribe' ? 'selected' : ''; ?>>Rafael Uribe Uribe</option>
+                            <option value="Ciudad Bolívar" <?= $location == 'Ciudad Bolívar' ? 'selected' : ''; ?>>Ciudad Bolívar</option>
+                            <option value="Sumapaz" <?= $location == 'Sumapaz' ? 'selected' : ''; ?>>Sumapaz</option>
+                            <option value="Fuera de Bogotá" <?= $location == 'Fuera de Bogotá' ? 'selected' : ''; ?>>Fuera de Bogotá</option>
+                        </select>
+                    </div>
+                    <div>
+                        <select name="genre" class="form-control">
+                            <option value="">Selecciona un genero</option>
+                            <option value="Novela" <?= $genre == 'Novela' ? 'selected' : ''; ?>>Novela</option>
+                            <option value="Ficción" <?= $genre == 'Ficción' ? 'selected' : ''; ?>>Ficción</option>
+                            <option value="Terror" <?= $genre == 'Terror' ? 'selected' : ''; ?>>Terror</option>
+                            <option value="Misterio" <?= $genre == 'Misterio' ? 'selected' : ''; ?>>Misterio</option>
+                            <option value="Crimen" <?= $genre == 'Crimen' ? 'selected' : ''; ?>>Crimen</option>
+                            <option value="Literatura infantil" <?= $genre == 'Literatura infantil' ? 'selected' : ''; ?>>Literatura infantil</option>
+                            <option value="Biografía" <?= $genre == 'Biografía' ? 'selected' : ''; ?>>Biografía</option>
+                            <option value="Historia" <?= $genre == 'Historia' ? 'selected' : ''; ?>>Historia</option>
+                            <option value="Filosofía" <?= $genre == 'Filosofía' ? 'selected' : ''; ?>>Filosofía</option>
+                            <option value="Psicología" <?= $genre == 'Psicología' ? 'selected' : ''; ?>>Psicología</option>
+                            <option value="Desarrollo personal" <?= $genre == 'Desarrollo personal' ? 'selected' : ''; ?>>Desarrollo personal</option>
+                            <option value="Espiritualidad" <?= $genre == 'Espiritualidad' ? 'selected' : ''; ?>>Espiritualidad</option>
+                            <option value="Política" <?= $genre == 'Política' ? 'selected' : ''; ?>>Política</option>
+                            <option value="Economía" <?= $genre == 'Economía' ? 'selected' : ''; ?>>Economía</option>
+                            <option value="Poesía" <?= $genre == 'Poesía' ? 'selected' : ''; ?>>Poesía</option>
+                            <option value="Teatro" <?= $genre == 'Teatro' ? 'selected' : ''; ?>>Teatro</option>
+                            <option value="Cuento" <?= $genre == 'Cuento' ? 'selected' : ''; ?>>Cuento</option>
+                            <option value="Divulgación científica" <?= $genre == 'Divulgación científica' ? 'selected' : ''; ?>>Divulgación científica</option>
+                            <option value="Tecnología" <?= $genre == 'Tecnología' ? 'selected' : ''; ?>>Tecnología</option>
+                            <option value="Novela gráfica" <?= $genre == 'Novela gráfica' ? 'selected' : ''; ?>>Novela gráfica</option>
+                            <option value="Ciencias básicas" <?= $genre == 'Ciencias básicas' ? 'selected' : ''; ?>>Ciencias básicas</option>
+                            <option value="Teoría musical" <?= $genre == 'Teoría musical' ? 'selected' : ''; ?>>Teoría musical</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button type="submit" class="form-control" style="background-color: #08083069; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;">BUSCAR LIBRO</button>
                     </div>
                 </form>
             </div>
