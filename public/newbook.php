@@ -710,12 +710,14 @@ if (isset($_SESSION['newbook_message'])) {
 
                     <div class="form-group" id="fecha-group" style="display: none;">
                         <label for="monto">Fecha limite</label>
-                        <input type="date" id="fecha" name="fecha" placeholder="Fecha limite" min="<?= date('Y-m-d') ?>">
+                        <input type="date" id="fecha" name="fecha" placeholder="Fecha limite"
+                            min="<?= date('Y-m-d') ?>">
                     </div>
 
                     <div class="form-group">
                         <label for="fechalibro">Fecha de publicación del libro (original)</label>
-                        <input type="date" id="fechalibro" name="fechalibro" placeholder="Fecha de publicación del libro" max="<?= date('Y-m-d') ?>">
+                        <input type="date" id="fechalibro" name="fechalibro"
+                            placeholder="Fecha de publicación del libro" max="<?= date('Y-m-d') ?>">
                     </div>
 
                     <div class="form-buttons">
@@ -827,6 +829,46 @@ if (isset($_SESSION['newbook_message'])) {
 
             // Inicializar al cargar la página
             updatePreview();
+
+            // --- Alert de recomendación para libros antiguos de ciencia/tecnología ---
+            const generoSelect = document.getElementById("genero");
+            const fechalibroInput = document.getElementById("fechalibro");
+            let hasShownAlert = false;
+
+            function checkAndShowAlert() {
+                const genre = generoSelect.value;
+                const transactionType = trxSelect.value;
+                const bookDate = fechalibroInput.value;
+
+                // Verificar si es un género de ciencia/tecnología
+                const isScientificOrTech = genre === "Divulgación científica" || genre === "Tecnología";
+
+                // Verificar si es venta o subasta
+                const isSaleOrAuction = transactionType === "Venta" || transactionType === "Subasta";
+
+                // Calcular si el libro es más viejo de 8 años
+                let isOlderThan8Years = false;
+                if (bookDate) {
+                    const publishDate = new Date(bookDate);
+                    const today = new Date();
+                    const ageInYears = today.getFullYear() - publishDate.getFullYear();
+                    isOlderThan8Years = ageInYears > 8;
+                }
+
+                // Si se cumplen todas las condiciones y no se ha mostrado el alert aún
+                if (isScientificOrTech && isSaleOrAuction && isOlderThan8Years && !hasShownAlert) {
+                    alert("📚 Recomendación: Este libro de ciencia o tecnología tiene más de 8 años de antigüedad.\n\nLa información podría estar desactualizada. Considera donarlo o intercambiarlo en lugar de venderlo o subastar.");
+                    hasShownAlert = true;
+                } else if (!(isScientificOrTech && isSaleOrAuction && isOlderThan8Years)) {
+                    // Reiniciar la bandera si las condiciones ya no se cumplen
+                    hasShownAlert = false;
+                }
+            }
+
+            // Escuchar cambios en los campos relevantes
+            generoSelect.addEventListener("change", checkAndShowAlert);
+            fechalibroInput.addEventListener("change", checkAndShowAlert);
+            trxSelect.addEventListener("change", checkAndShowAlert);
         </script>
 
 
