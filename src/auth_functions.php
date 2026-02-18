@@ -1284,10 +1284,15 @@ function finalizeProposal($proposal_id)
         $stmt = $pdo->prepare($sql1);
         $stmt->execute(['proposal_id' => $proposal_id]);
         
-        // Marca libro como no disponible
+        // Marca libro destino como no disponible
         $sql2 = 'UPDATE "book" SET "status" = FALSE WHERE "id" = (SELECT "targetbookid" FROM "proposal" WHERE "id" = :proposal_id)';
         $stmt2 = $pdo->prepare($sql2);
         $stmt2->execute(['proposal_id' => $proposal_id]);
+        
+        // Marca libros ofrecidos (en propuestas de intercambio) como no disponibles
+        $sql3 = 'UPDATE "book" SET "status" = FALSE WHERE "id" IN (SELECT "bookid" FROM "proposal_book" WHERE "proposalid" = :proposal_id)';
+        $stmt3 = $pdo->prepare($sql3);
+        $stmt3->execute(['proposal_id' => $proposal_id]);
         
         return true;
         
